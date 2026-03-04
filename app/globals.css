@@ -1,0 +1,100 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))
+    )
+    rgb(var(--background-start-rgb));
+  font-family: 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', Roboto, sans-serif;
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* 金融红绿配色 - 符合A股习惯 */
+.text-rise {
+  color: #ef4444 !important;
+}
+
+.text-fall {
+  color: #22c55e !important;
+}
+
+.bg-rise {
+  background-color: #ef4444 !important;
+}
+
+.bg-fall {
+  background-color: #22c55e !important;
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* 卡片阴影 */
+.card-shadow {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.card-shadow:hover {
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+/* 渐变按钮 */
+.btn-gradient {
+  background: linear-gradient(135deg, #0a2463 0%, #1e3a8a 100%);
+}
+
+.btn-gradient:hover {
+  background: linear-gradient(135deg, #1e3a8a 0%, #0a2463 100%);
+}
+
+/* 金色边框 */
+.border-gold {
+  border-color: #d4af37;
+}
+
+/* 文字描边效果 */
+.text-outline {
+  -webkit-text-stroke: 1px rgba(10, 36, 99, 0.3);
+}
