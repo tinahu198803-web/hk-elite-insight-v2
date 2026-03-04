@@ -247,10 +247,10 @@ export default function Home() {
                 </div>
                 <div className="text-left">
                   <h2 className="text-2xl font-bold text-white mb-2">港股IPO专家团队</h2>
-                  <p className="text-primary-100">5位顶尖专家，为您提供全方位咨询服务</p>
+                  <p className="text-primary-100">7位顶尖专家，为您提供全方位咨询服务</p>
                   <div className="flex items-center mt-2 space-x-2">
                     <Sparkles className="text-gold-400" size={16} />
-                    <span className="text-gold-300 text-sm">港股通体检 · 招股书分析 · 上市规划 · 合规审查 · 估值定价</span>
+                    <span className="text-gold-300 text-sm">港股通体检 · 招股书分析 · 上市规划 · 合规审查 · 估值定价 · 指数纳入 · 入港股通规划</span>
                   </div>
                 </div>
               </div>
