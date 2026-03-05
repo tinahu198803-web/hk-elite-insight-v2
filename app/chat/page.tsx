@@ -24,6 +24,7 @@ interface Expert {
   temperature?: number;
   maxTokens?: number;
   price: number;
+  features?: string[];
 }
 
 // 图标映射
