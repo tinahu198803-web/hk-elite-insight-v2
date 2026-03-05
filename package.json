@@ -1,5 +1,5 @@
 {
-  "name": "hk-ipo-simple",
+  "name": "hk-ipo-tech",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -11,7 +11,8 @@
   "dependencies": {
     "next": "14.1.0",
     "react": "18.2.0",
-    "react-dom": "18.2.0"
+    "react-dom": "18.2.0",
+    "lucide-react": "0.309.0"
   },
   "devDependencies": {
     "@types/node": "20.11.0",
