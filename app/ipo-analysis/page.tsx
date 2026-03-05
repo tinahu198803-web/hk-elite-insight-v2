@@ -23,6 +23,7 @@ type AnalysisData = {
     风险因素: { summary: string; risks: string[] };
   };
   recommendation: { score: number; summary: string };
+  isMock?: boolean;
 };
 
 export default function IPOAnalysisPage() {
