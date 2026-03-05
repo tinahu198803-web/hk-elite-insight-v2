@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import expertsConfig from '../config/experts.json';
+import expertsConfig from '../../config/experts.json';
 
 // 获取专家列表
 export async function GET() {
