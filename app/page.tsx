@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, FileText, Activity, CreditCard, User, Menu, X, ChevronRight, TrendingUp, TrendingDown, Star, Clock, CheckCircle, AlertCircle, Users, Sparkles } from 'lucide-react';
+import { Search, FileText, Activity, CreditCard, User, Menu, X, ChevronRight, TrendingUp, TrendingDown, Star, Clock, CheckCircle, AlertCircle, Users, Sparkles, BarChart3 } from 'lucide-react';
 
 // 模拟数据
 const FEATURED_IPOS = [
