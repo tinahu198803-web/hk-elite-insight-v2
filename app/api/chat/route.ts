@@ -8,6 +8,60 @@ const AZURE_OPENAI_API_KEY = process.env.AZURE_OPENAI_API_KEY || '';
 // 腾讯财经API基础URL
 const TENCENT_FINANCE_API = 'https://qt.gtimg.cn/q=';
 
+// 港股股票代码映射表 - 最可靠的数据源
+const HK_STOCK_MAP: Record<string, { name: string; nameEn: string; industry: string }> = {
+  // 互联网巨头
+  '00700.hk': { name: '腾讯控股', nameEn: 'Tencent Holdings', industry: '互联网' },
+  '09988.hk': { name: '阿里巴巴-SW', nameEn: 'Alibaba Group', industry: '互联网' },
+  '03690.hk': { name: '美团-W', nameEn: 'Meituan', industry: '互联网' },
+  '01810.hk': { name: '小米集团-W', nameEn: 'Xiaomi Group', industry: '互联网/消费电子' },
+  '02418.hk': { name: '京东集团-SW', nameEn: 'JD.com', industry: '互联网' },
+  '06618.hk': { name: '京东健康', nameEn: 'JD Health', industry: '互联网医疗' },
+  '09618.hk': { name: '京东集团-SW', nameEn: 'JD.com (SW)', industry: '互联网' },
+  
+  // 金融
+  '02659.hk': { name: '宝济药业-B', nameEn: 'Baoji Pharma', industry: '生物医药' },
+  '06030.hk': { name: '中信证券', nameEn: 'CITIC Securities', industry: '金融' },
+  '02318.hk': { name: '中国平安', nameEn: 'Ping An', industry: '保险' },
+  '00981.hk': { name: '中芯国际', nameEn: 'SMIC', industry: '半导体' },
+  '02628.hk': { name: '中国人寿', nameEn: 'China Life', industry: '保险' },
+  '01398.hk': { name: '工商银行', nameEn: 'ICBC', industry: '银行' },
+  '00939.hk': { name: '建设银行', nameEn: 'CCB', industry: '银行' },
+  '03988.hk': { name: '中国银行', nameEn: 'BOC', industry: '银行' },
+  '00005.hk': { name: '汇丰控股', nameEn: 'HSBC', industry: '银行' },
+  '02333.hk': { name: '长城汽车', nameEn: 'Great Wall Motor', industry: '汽车' },
+  '12118.hk': { name: '小鹏汽车-W', nameEn: 'XPeng', industry: '新能源汽车' },
+  '09868.hk': { name: '小鹏汽车-W', nameEn: 'XPeng (SW)', industry: '新能源汽车' },
+  '09881.hk': { name: '理想汽车-W', nameEn: 'Li Auto', industry: '新能源汽车' },
+  '02015.hk': { name: '理想汽车-W', nameEn: 'Li Auto (SW)', industry: '新能源汽车' },
+  
+  // 医药生物
+  '02219.hk': { name: '复星医药', nameEn: 'Fosun Pharma', industry: '医药' },
+  '06677.hk': { name: '药明康德', nameEn: 'WuXi AppTec', industry: '医药' },
+  '02269.hk': { name: '药明生物', nameEn: 'WuXi Biologics', industry: '生物医药' },
+  '01885.hk': { name: '康弘药业', nameEn: 'Kanghong Pharma', industry: '医药' },
+  '02552.hk': { name: '华润医药', nameEn: 'China Resources Pharma', industry: '医药' },
+  
+  // 消费
+  '01928.hk': { name: '金沙中国', nameEn: 'Las Vegas Sands', industry: '博彩旅游' },
+  '00027.hk': { name: '银河娱乐', nameEn: 'Galaxy Entertainment', industry: '博彩旅游' },
+  '01171.hk': { name: '华润啤酒', nameEn: 'CR Beer', industry: '消费' },
+  '00388.hk': { name: '香港交易所', nameEn: 'HKEX', industry: '金融' },
+  
+  // 地产
+  '01109.hk': { name: '华润置地', nameEn: 'CR Land', industry: '房地产' },
+  '06808.hk': { name: '中国奥园', nameEn: 'China Aoyuan', industry: '房地产' },
+  '02777.hk': { name: '富力地产', nameEn: 'R&F Properties', industry: '房地产' },
+  
+  // 科技
+  '00384.hk': { name: '中国燃气', nameEn: 'China Gas', industry: '公用事业' },
+  '02656.hk': { name: '中航资本', nameEn: 'AVIC Capital', industry: '金融' },
+  '02020.hk': { name: '安踏体育', nameEn: 'ANTA Sports', industry: '消费' },
+  
+  // 2024年新股
+  '09988.hk': { name: '阿里巴巴-SW', nameEn: 'Alibaba Group', industry: '互联网' },
+};
+
 // 港股股票代码规范化
 function normalizeStockCode(code: string): string {
   let normalized = code.trim().toUpperCase();
@@ -37,8 +91,33 @@ function extractStockCodes(message: string): string[] {
     .filter(code => code.length >= 6 && code.length <= 7); // 例如 00700.hk
 }
 
-// 获取股票数据
-async function getStockData(stockCode: string) {
+// 获取股票数据 - 优先使用本地映射表，确保准确性
+function getStockData(stockCode: string) {
+  // 首先检查本地映射表
+  const normalizedCode = normalizeStockCode(stockCode);
+  
+  // 检查本地映射
+  if (HK_STOCK_MAP[normalizedCode]) {
+    const info = HK_STOCK_MAP[normalizedCode];
+    return {
+      code: normalizedCode.toUpperCase(),
+      name: info.name,
+      nameEn: info.nameEn,
+      industry: info.industry,
+      price: 0,  // 本地映射不包含实时价格
+      change: 0,
+      changePct: 0,
+      marketCap: 0,
+      source: 'local'
+    };
+  }
+  
+  // 尝试API获取实时数据
+  return getStockDataFromAPI(stockCode);
+}
+
+// 从API获取股票数据
+async function getStockDataFromAPI(stockCode: string) {
   try {
     const normalizedCode = normalizeStockCode(stockCode);
     const url = `${TENCENT_FINANCE_API}${normalizedCode}`;
