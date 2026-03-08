@@ -5,6 +5,80 @@ import expertsConfig from '../../config/experts.json';
 const AZURE_OPENAI_ENDPOINT = process.env.AZURE_OPENAI_ENDPOINT || '';
 const AZURE_OPENAI_API_KEY = process.env.AZURE_OPENAI_API_KEY || '';
 
+// 腾讯财经API基础URL
+const TENCENT_FINANCE_API = 'https://qt.gtimg.cn/q=';
+
+// 港股股票代码规范化
+function normalizeStockCode(code: string): string {
+  let normalized = code.trim().toUpperCase();
+  if (normalized.endsWith('.HK')) {
+    return normalized;
+  }
+  if (/^\d+$/.test(normalized)) {
+    return `${normalized}.hk`;
+  }
+  return normalized;
+}
+
+// 提取消息中的股票代码
+function extractStockCodes(message: string): string[] {
+  const stockCodePattern = /\b(\d{4,5}\.?(?:hk|HK)?)\b/g;
+  const matches = message.match(stockCodePattern) || [];
+  // 过滤掉明显不是股票代码的数字
+  return matches
+    .map(code => {
+      let cleaned = code.replace(/\./, '').toLowerCase();
+      if (!cleaned.endsWith('hk')) {
+        cleaned += 'hk';
+      }
+      return cleaned;
+    })
+    .filter(code => code.length >= 6); // 例如 00700.hk
+}
+
+// 获取股票数据
+async function getStockData(stockCode: string) {
+  try {
+    const normalizedCode = normalizeStockCode(stockCode);
+    const url = `${TENCENT_FINANCE_API}${normalizedCode}`;
+    
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      },
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const text = await response.text();
+    const match = text.match(/="([^"]+)"/);
+    
+    if (!match || !match[1]) {
+      return null;
+    }
+
+    const dataParts = match[1].split(',');
+    
+    if (dataParts.length < 10) {
+      return null;
+    }
+
+    return {
+      code: normalizedCode.toUpperCase(),
+      name: dataParts[0],           // 股票名称
+      price: parseFloat(dataParts[1]),
+      change: parseFloat(dataParts[2]),
+      changePct: parseFloat(dataParts[3]),
+      marketCap: parseFloat(dataParts[45]),
+    };
+  } catch (error) {
+    console.error('获取股票数据失败:', error);
+    return null;
+  }
+}
+
 // 调用Azure OpenAI API
 async function callAzureOpenAI(messages: any[], temperature: number = 0.7, maxTokens: number = 2000) {
   try {
@@ -50,9 +124,36 @@ export async function POST(request: Request) {
       }, { status: 404 });
     }
 
+    // 自动提取并查询股票代码
+    const stockCodes = extractStockCodes(message);
+    let stockInfoContext = '';
+    
+    if (stockCodes.length > 0) {
+      const uniqueCodes = [...new Set(stockCodes)];
+      const stockDataPromises = uniqueCodes.slice(0, 3).map(code => getStockData(code));
+      const stockResults = await Promise.all(stockDataPromises);
+      
+      const validStocks = stockResults.filter(s => s !== null);
+      if (validStocks.length > 0) {
+        stockInfoContext = '\n\n【实时股票数据】\n';
+        validStocks.forEach(stock => {
+          if (stock) {
+            stockInfoContext += `- ${stock.code}: ${stock.name} (当前价: ${stock.price}港元, 涨跌: ${stock.change > 0 ? '+' : ''}${stock.change}港元, ${stock.changePct}%)\n`;
+          }
+        });
+        stockInfoContext += '请以上述实时数据为准回答用户问题。\n';
+      }
+    }
+
     // 构建消息列表
+    let systemPrompt = expert.systemPrompt;
+    // 如果有股票信息，添加到系统提示中
+    if (stockInfoContext) {
+      systemPrompt += stockInfoContext;
+    }
+    
     const messages = [
-      { role: 'system', content: expert.systemPrompt }
+      { role: 'system', content: systemPrompt }
     ];
 
     // 添加历史对话
