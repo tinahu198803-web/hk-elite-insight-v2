@@ -1,10 +1,129 @@
+'use client';
+
+import { useState } from 'react';
+import { 
+  ArrowLeft, 
+  Send, 
+  Loader2, 
+  CheckCircle, 
+  AlertCircle, 
+  TrendingUp,
+  Shield,
+  DollarSign,
+  Building
+} from 'lucide-react';
+
+interface HealthCheckResult {
+  overallScore: number;
+  summary: string;
+  details: {
+    财务指标: { status: string; score: number; issues: string[]; details: string };
+    股权架构: { status: string; score: number; issues: string[]; details: string };
+    合规要求: { status: string; score: number; issues: string[]; details: string };
+    市值达标: { status: string; score: number; issues: string[]; details: string };
+  };
+  recommendations: { priority: string; category: string; suggestion: string }[];
+}
+
 export default function HealthCheckPage() {
+  const [companyName, setCompanyName] = useState('');
+  const [stockCode, setStockCode] = useState('');
+  const [marketCap, setMarketCap] = useState('');
+  const [revenue, setRevenue] = useState('');
+  const [profit, setProfit] = useState('');
+  const [cashFlow, setCashFlow] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<HealthCheckResult | null>(null);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!companyName) {
+      setError('请输入公司名称');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setResult(null);
+
+    try {
+      const response = await fetch('/api/health-check', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          companyName,
+          stockCode,
+          marketCap: marketCap ? parseFloat(marketCap) : undefined,
+          revenue: revenue ? parseFloat(revenue) : undefined,
+          profit: profit ? parseFloat(profit) : undefined,
+          cashFlow: cashFlow ? parseFloat(cashFlow) : undefined,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setResult(data.data);
+      } else {
+        setError(data.error || '体检分析失败，请稍后重试');
+      }
+    } catch (err: any) {
+      setError(err.message || '网络错误，请稍后重试');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pass':
+        return 'text-green-500';
+      case 'warning':
+        return 'text-yellow-500';
+      case 'fail':
+        return 'text-red-500';
+      default:
+        return 'text-gray-500';
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'pass':
+        return <CheckCircle className="text-green-500" size={20} />;
+      case 'warning':
+        return <AlertCircle className="text-yellow-500" size={20} />;
+      case 'fail':
+        return <AlertCircle className="text-red-500" size={20} />;
+      default:
+        return <AlertCircle className="text-gray-500" size={20} />;
+    }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'high':
+        return 'bg-red-100 text-red-700';
+      case 'medium':
+        return 'bg-yellow-100 text-yellow-700';
+      case 'low':
+        return 'bg-green-100 text-green-700';
+      default:
+        return 'bg-gray-100 text-gray-700';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Header */}
       <div className="bg-gradient-to-b from-primary-900 to-primary-950 pb-8">
         <div className="max-w-4xl mx-auto px-4 py-6">
-          <a href="/" className="text-white flex items-center text-sm mb-4">
-            ← 返回首页
+          <a href="/" className="text-white flex items-center text-sm mb-4 hover:text-primary-200">
+            <ArrowLeft size={16} className="mr-1" />
+            返回首页
           </a>
           <h1 className="text-2xl font-bold text-white">港股通体检</h1>
           <p className="text-primary-100 text-sm mt-1">输入公司信息，AI专家为您进行入通可行性分析</p>
@@ -12,26 +131,229 @@ export default function HealthCheckPage() {
       </div>
 
       <div className="max-w-4xl mx-auto px-4 -mt-6">
+        {/* Input Form */}
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">功能即将上线</h2>
-          <p className="text-gray-600 mb-4">
-            港股通体检功能正在紧张开发中，敬请期待！
-          </p>
-          <div className="bg-primary-50 rounded-xl p-4">
-            <p className="text-primary-800 text-sm">
-              <strong>功能亮点：</strong>
-            </p>
-            <ul className="text-primary-700 text-sm mt-2 space-y-1">
-              <li>✓ AI智能分析公司财务数据</li>
-              <li>✓ 股权架构评估</li>
-              <li>✓ 合规风险提示</li>
-              <li>✓ 个性化改进建议</li>
-            </ul>
-          </div>
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">公司基本信息</h2>
+          
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  公司名称 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  placeholder="例如：美团"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  股票代码（选填）
+                </label>
+                <input
+                  type="text"
+                  value={stockCode}
+                  onChange={(e) => setStockCode(e.target.value)}
+                  placeholder="例如：3690.HK"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                />
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  市值（亿港元，选填）
+                </label>
+                <input
+                  type="number"
+                  value={marketCap}
+                  onChange={(e) => setMarketCap(e.target.value)}
+                  placeholder="例如：5000"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  年收入（亿港元，选填）
+                </label>
+                <input
+                  type="number"
+                  value={revenue}
+                  onChange={(e) => setRevenue(e.target.value)}
+                  placeholder="例如：50"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                />
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  年利润（亿港元，选填）
+                </label>
+                <input
+                  type="number"
+                  value={profit}
+                  onChange={(e) => setProfit(e.target.value)}
+                  placeholder="例如：10"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  三年累计现金流（亿港元，选填）
+                </label>
+                <input
+                  type="number"
+                  value={cashFlow}
+                  onChange={(e) => setCashFlow(e.target.value)}
+                  placeholder="例如：5"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                />
+              </div>
+            </div>
+
+            {error && (
+              <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg text-sm">
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-primary-600 to-primary-700 text-white py-3 rounded-lg font-semibold hover:from-primary-700 hover:to-primary-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="animate-spin mr-2" size={20} />
+                  AI分析中，请稍候...
+                </>
+              ) : <Send className="mr-2" size={20} />
+                  开始港 (
+                <>
+                 股通体检
+                </>
+              )}
+            </button>
+          </form>
         </div>
-        
-        <div className="text-center py-8 mb-24">
-          <p className="text-gray-500">请关注公众号获取最新上线通知</p>
+
+        {/* Results */}
+        {result && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            {/* Score */}
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-br from-primary-500 to-primary-700 mb-4">
+                <span className="text-3xl font-bold text-white">{result.overallScore}</span>
+              </div>
+              <h3 className="text-xl font-bold text-gray-800">体检得分</h3>
+              <p className="text-gray-600 mt-2">{result.summary}</p>
+            </div>
+
+            {/* Details */}
+            <div className="space-y-4 mb-6">
+              <div className="flex items-center gap-2 mb-3">
+                <DollarSign className="text-primary-600" size={20} />
+                <h4 className="font-semibold text-gray-800">财务指标</h4>
+                {getStatusIcon(result.details.财务指标.status)}
+              </div>
+              <div className="bg-gray-50 rounded-xl p-4">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-gray-600">评分</span>
+                  <span className={`font-bold ${getStatusColor(result.details.财务指标.status)}`}>
+                    {result.details.财务指标.score}分
+                  </span>
+                </div>
+                {result.details.财务指标.details && (
+                  <p className="text-sm text-gray-600">{result.details.财务指标.details}</p>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 mb-3">
+                <Building className="text-primary-600" size={20} />
+                <h4 className="font-semibold text-gray-800">股权架构</h4>
+                {getStatusIcon(result.details.股权架构.status)}
+              </div>
+              <div className="bg-gray-50 rounded-xl p-4">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-gray-600">评分</span>
+                  <span className={`font-bold ${getStatusColor(result.details.股权架构.status)}`}>
+                    {result.details.股权架构.score}分
+                  </span>
+                </div>
+                {result.details.股权架构.details && (
+                  <p className="text-sm text-gray-600">{result.details.股权架构.details}</p>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 mb-3">
+                <Shield className="text-primary-600" size={20} />
+                <h4 className="font-semibold text-gray-800">合规要求</h4>
+                {getStatusIcon(result.details.合规要求.status)}
+              </div>
+              <div className="bg-gray-50 rounded-xl p-4">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-gray-600">评分</span>
+                  <span className={`font-bold ${getStatusColor(result.details.合规要求.status)}`}>
+                    {result.details.合规要求.score}分
+                  </span>
+                </div>
+                {result.details.合规要求.details && (
+                  <p className="text-sm text-gray-600">{result.details.合规要求.details}</p>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 mb-3">
+                <TrendingUp className="text-primary-600" size={20} />
+                <h4 className="font-semibold text-gray-800">市值达标</h4>
+                {getStatusIcon(result.details.市值达标.status)}
+              </div>
+              <div className="bg-gray-50 rounded-xl p-4">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-gray-600">评分</span>
+                  <span className={`font-bold ${getStatusColor(result.details.市值达标.status)}`}>
+                    {result.details.市值达标.score}分
+                  </span>
+                </div>
+                {result.details.市值达标.details && (
+                  <p className="text-sm text-gray-600">{result.details.市值达标.details}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Recommendations */}
+            {result.recommendations && result.recommendations.length > 0 && (
+              <div>
+                <h4 className="font-semibold text-gray-800 mb-3">改进建议</h4>
+                <div className="space-y-3">
+                  {result.recommendations.map((rec, index) => (
+                    <div key={index} className="flex items-start gap-3 p-4 bg-gray-50 rounded-xl">
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${getPriorityColor(rec.priority)}`}>
+                        {rec.priority === 'high' ? '高' : rec.priority === 'medium' ? '中' : '低'}
+                      </span>
+                      <div>
+                        <p className="font-medium text-gray-800">{rec.category}</p>
+                        <p className="text-sm text-gray-600">{rec.suggestion}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Disclaimer */}
+        <div className="text-center py-4 mb-24">
+          <p className="text-gray-400 text-xs">
+            本服务仅供参考，不构成投资建议。投资有风险，入市需谨慎。
+          </p>
         </div>
       </div>
     </div>
