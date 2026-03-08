@@ -60,7 +60,7 @@ export default function HealthCheckPage() {
           revenue: revenue ? parseFloat(revenue) : undefined,
           profit: profit ? parseFloat(profit) : undefined,
           cashFlow: cashFlow ? parseFloat(cashFlow) : undefined,
-        }),
+        })
       });
 
       const data = await response.json();
