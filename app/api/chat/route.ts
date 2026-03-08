@@ -22,18 +22,19 @@ function normalizeStockCode(code: string): string {
 
 // 提取消息中的股票代码
 function extractStockCodes(message: string): string[] {
-  const stockCodePattern = /\b(\d{4,5}\.?(?:hk|HK)?)\b/g;
+  // 匹配各种格式的港股代码：00700.hk, 00700, 02659.hk 等
+  const stockCodePattern = /\b(0\d{4}\.?(?:hk|HK)?)\b/gi;
   const matches = message.match(stockCodePattern) || [];
-  // 过滤掉明显不是股票代码的数字
+  // 过滤并标准化
   return matches
     .map(code => {
-      let cleaned = code.replace(/\./, '').toLowerCase();
+      let cleaned = code.replace(/\./g, '').toLowerCase();
       if (!cleaned.endsWith('hk')) {
         cleaned += 'hk';
       }
       return cleaned;
     })
-    .filter(code => code.length >= 6); // 例如 00700.hk
+    .filter(code => code.length >= 6 && code.length <= 7); // 例如 00700.hk
 }
 
 // 获取股票数据
@@ -134,6 +135,8 @@ export async function POST(request: Request) {
       const stockResults = await Promise.all(stockDataPromises);
       
       const validStocks = stockResults.filter(s => s !== null);
+      const notFoundStocks = uniqueCodes.filter((code, idx) => stockResults[idx] === null);
+      
       if (validStocks.length > 0) {
         stockInfoContext = '\n\n【实时股票数据】\n';
         validStocks.forEach(stock => {
@@ -142,6 +145,14 @@ export async function POST(request: Request) {
           }
         });
         stockInfoContext += '请以上述实时数据为准回答用户问题。\n';
+      }
+      
+      // 明确告知AI哪些股票查不到
+      if (notFoundStocks.length > 0) {
+        stockInfoContext += '\n【重要】以下股票代码未能在数据库中找到，请明确告知用户："抱歉，我无法识别该股票代码，请通过官方渠道（港交所披露易、 Bloomberg等）核实信息。"，切勿自行猜测公司名称！\n';
+        notFoundStocks.forEach(code => {
+          stockInfoContext += `- ${code}: 未找到数据\n`;
+        });
       }
     }
 
