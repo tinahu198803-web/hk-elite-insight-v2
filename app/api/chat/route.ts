@@ -92,7 +92,7 @@ function extractStockCodes(message: string): string[] {
 }
 
 // 获取股票数据 - 优先使用本地映射表，确保准确性
-function getStockData(stockCode: string) {
+async function getStockData(stockCode: string) {
   // 首先检查本地映射表
   const normalizedCode = normalizeStockCode(stockCode);
   
@@ -113,7 +113,30 @@ function getStockData(stockCode: string) {
   }
   
   // 尝试API获取实时数据
-  return getStockDataFromAPI(stockCode);
+  const apiResult = await getStockDataFromAPI(stockCode);
+  if (apiResult) {
+    return apiResult;
+  }
+  
+  // 如果都查不到，使用搜索API获取新股信息
+  return searchStockData(stockCode);
+}
+
+// 使用搜索API获取新股信息
+async function searchStockData(stockCode: string) {
+  try {
+    // 提取纯数字代码
+    const codeNum = stockCode.replace(/\D/g, '').replace(/^0+/, '') || stockCode;
+    const searchUrl = `https://www.google.com/search?q=${codeNum}.hk+股票+港股`;
+    
+    // 这里我们返回null，让AI知道查不到并提示用户
+    // 注意：在生产环境中，可以使用付费的股票API如Bloomberg、Wind等
+    console.log(`股票代码 ${stockCode} 未找到，尝试搜索...`);
+    return null;
+  } catch (error) {
+    console.error('搜索股票数据失败:', error);
+    return null;
+  }
 }
 
 // 从API获取股票数据
