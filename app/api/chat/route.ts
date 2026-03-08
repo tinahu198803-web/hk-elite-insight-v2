@@ -20,7 +20,6 @@ const HK_STOCK_MAP: Record<string, { name: string; nameEn: string; industry: str
   '09618.hk': { name: '京东集团-SW', nameEn: 'JD.com (SW)', industry: '互联网' },
   
   // 金融
-  '02659.hk': { name: '宝济药业-B', nameEn: 'Baoji Pharma', industry: '生物医药' },
   '06030.hk': { name: '中信证券', nameEn: 'CITIC Securities', industry: '金融' },
   '02318.hk': { name: '中国平安', nameEn: 'Ping An', industry: '保险' },
   '00981.hk': { name: '中芯国际', nameEn: 'SMIC', industry: '半导体' },
@@ -41,6 +40,7 @@ const HK_STOCK_MAP: Record<string, { name: string; nameEn: string; industry: str
   '02269.hk': { name: '药明生物', nameEn: 'WuXi Biologics', industry: '生物医药' },
   '01885.hk': { name: '康弘药业', nameEn: 'Kanghong Pharma', industry: '医药' },
   '02552.hk': { name: '华润医药', nameEn: 'China Resources Pharma', industry: '医药' },
+  '02659.hk': { name: '宝济药业-B', nameEn: 'Baoji Pharma', industry: '生物医药' },
   
   // 消费
   '01928.hk': { name: '金沙中国', nameEn: 'Las Vegas Sands', industry: '博彩旅游' },
@@ -57,9 +57,6 @@ const HK_STOCK_MAP: Record<string, { name: string; nameEn: string; industry: str
   '00384.hk': { name: '中国燃气', nameEn: 'China Gas', industry: '公用事业' },
   '02656.hk': { name: '中航资本', nameEn: 'AVIC Capital', industry: '金融' },
   '02020.hk': { name: '安踏体育', nameEn: 'ANTA Sports', industry: '消费' },
-  
-  // 2024年新股
-  '09988.hk': { name: '阿里巴巴-SW', nameEn: 'Alibaba Group', industry: '互联网' },
 };
 
 // 港股股票代码规范化
