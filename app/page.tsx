@@ -301,7 +301,7 @@ export default function Home() {
       <footer className="bg-primary-950 py-8 mt-8">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <p className="text-primary-200 text-sm">
-            © 2024 港股智通（HK-Elite Insight）保留所有权利
+            © 2026 港股智通（HK-Elite Insight）保留所有权利
           </p>
           <p className="text-primary-300 text-xs mt-2">
             本服务由香港持牌证券公司提供 · 投资有风险，入市需谨慎
