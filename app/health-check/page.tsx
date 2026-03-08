@@ -1,5 +1,4 @@
 'use client';
-'use client';
 
 import { useState } from 'react';
 import { 
@@ -7,7 +6,7 @@ import {
   Send, 
   Loader2, 
   CheckCircle, 
-  AlertCircle, 
+  AlertCircle,
   TrendingUp,
   Shield,
   DollarSign,
@@ -61,7 +60,7 @@ export default function HealthCheckPage() {
           revenue: revenue ? parseFloat(revenue) : undefined,
           profit: profit ? parseFloat(profit) : undefined,
           cashFlow: cashFlow ? parseFloat(cashFlow) : undefined,
-        })
+        }),
       });
 
       const data = await response.json();
@@ -137,90 +136,87 @@ export default function HealthCheckPage() {
           <h2 className="text-lg font-semibold text-gray-800 mb-4">公司基本信息</h2>
           
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  公司名称 <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
-                  placeholder="例如：美团"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  股票代码（选填）
-                </label>
-                <input
-                  type="text"
-                  value={stockCode}
-                  onChange={(e) => setStockCode(e.target.value)}
-                  placeholder="例如：3690.HK"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                />
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                公司名称 <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                placeholder="例如：美团"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                required
+              />
             </div>
 
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  市值（亿港元，选填）
-                </label>
-                <input
-                  type="number"
-                  value={marketCap}
-                  onChange={(e) => setMarketCap(e.target.value)}
-                  placeholder="例如：5000"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  年收入（亿港元，选填）
-                </label>
-                <input
-                  type="number"
-                  value={revenue}
-                  onChange={(e) => setRevenue(e.target.value)}
-                  placeholder="例如：50"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                />
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                股票代码（选填）
+              </label>
+              <input
+                type="text"
+                value={stockCode}
+                onChange={(e) => setStockCode(e.target.value)}
+                placeholder="例如：3690.HK"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              />
             </div>
 
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  年利润（亿港元，选填）
-                </label>
-                <input
-                  type="number"
-                  value={profit}
-                  onChange={(e) => setProfit(e.target.value)}
-                  placeholder="例如：10"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  三年累计现金流（亿港元，选填）
-                </label>
-                <input
-                  type="number"
-                  value={cashFlow}
-                  onChange={(e) => setCashFlow(e.target.value)}
-                  placeholder="例如：5"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                />
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                市值（亿港元，选填）
+              </label>
+              <input
+                type="number"
+                value={marketCap}
+                onChange={(e) => setMarketCap(e.target.value)}
+                placeholder="例如：5000"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                年收入（亿港元，选填）
+              </label>
+              <input
+                type="number"
+                value={revenue}
+                onChange={(e) => setRevenue(e.target.value)}
+                placeholder="例如：50"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                年利润（亿港元，选填）
+              </label>
+              <input
+                type="number"
+                value={profit}
+                onChange={(e) => setProfit(e.target.value)}
+                placeholder="例如：10"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                三年累计现金流（亿港元，选填）
+              </label>
+              <input
+                type="number"
+                value={cashFlow}
+                onChange={(e) => setCashFlow(e.target.value)}
+                placeholder="例如：5"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              />
             </div>
 
             {error && (
-              <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg text-sm">
+              <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm">
                 {error}
               </div>
             )}
@@ -228,17 +224,17 @@ export default function HealthCheckPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-primary-600 to-primary-700 text-white py-3 rounded-lg font-semibold hover:from-primary-700 hover:to-primary-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              className="w-full bg-primary-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center"
             >
               {loading ? (
                 <>
                   <Loader2 className="animate-spin mr-2" size={20} />
                   AI分析中，请稍候...
                 </>
-              ) : <Send className="mr-2" size={20} />
-                  开始港 (
+              ) : (
                 <>
-                 股通体检
+                  <Send className="mr-2" size={20} />
+                  开始港股通体检
                 </>
               )}
             </button>
@@ -250,80 +246,78 @@ export default function HealthCheckPage() {
           <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
             {/* Score */}
             <div className="text-center mb-6">
-              <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-br from-primary-500 to-primary-700 mb-4">
+              <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full mb-4">
                 <span className="text-3xl font-bold text-white">{result.overallScore}</span>
               </div>
-              <h3 className="text-xl font-bold text-gray-800">体检得分</h3>
+              <h2 className="text-xl font-bold text-gray-800">体检得分</h2>
               <p className="text-gray-600 mt-2">{result.summary}</p>
             </div>
 
             {/* Details */}
             <div className="space-y-4 mb-6">
-              <div className="flex items-center gap-2 mb-3">
-                <DollarSign className="text-primary-600" size={20} />
-                <h4 className="font-semibold text-gray-800">财务指标</h4>
-                {getStatusIcon(result.details.财务指标.status)}
-              </div>
-              <div className="bg-gray-50 rounded-xl p-4">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-gray-600">评分</span>
-                  <span className={`font-bold ${getStatusColor(result.details.财务指标.status)}`}>
-                    {result.details.财务指标.score}分
-                  </span>
+              <h3 className="font-semibold text-gray-800">详细分析</h3>
+              
+              <div className="border rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center">
+                    <TrendingUp className="text-primary-600 mr-2" size={20} />
+                    <span className="font-medium">财务指标</span>
+                  </div>
+                  <div className="flex items-center">
+                    {getStatusIcon(result.details.财务指标.status)}
+                    <span className="ml-2 font-bold">{result.details.财务指标.score}分</span>
+                  </div>
                 </div>
                 {result.details.财务指标.details && (
-                  <p className="text-sm text-gray-600">{result.details.财务指标.details}</p>
+                  <p className="text-sm text-gray-600 mt-2">{result.details.财务指标.details}</p>
                 )}
               </div>
 
-              <div className="flex items-center gap-2 mb-3">
-                <Building className="text-primary-600" size={20} />
-                <h4 className="font-semibold text-gray-800">股权架构</h4>
-                {getStatusIcon(result.details.股权架构.status)}
-              </div>
-              <div className="bg-gray-50 rounded-xl p-4">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-gray-600">评分</span>
-                  <span className={`font-bold ${getStatusColor(result.details.股权架构.status)}`}>
-                    {result.details.股权架构.score}分
-                  </span>
+              <div className="border rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center">
+                    <Building className="text-primary-600 mr-2" size={20} />
+                    <span className="font-medium">股权架构</span>
+                  </div>
+                  <div className="flex items-center">
+                    {getStatusIcon(result.details.股权架构.status)}
+                    <span className="ml-2 font-bold">{result.details.股权架构.score}分</span>
+                  </div>
                 </div>
                 {result.details.股权架构.details && (
-                  <p className="text-sm text-gray-600">{result.details.股权架构.details}</p>
+                  <p className="text-sm text-gray-600 mt-2">{result.details.股权架构.details}</p>
                 )}
               </div>
 
-              <div className="flex items-center gap-2 mb-3">
-                <Shield className="text-primary-600" size={20} />
-                <h4 className="font-semibold text-gray-800">合规要求</h4>
-                {getStatusIcon(result.details.合规要求.status)}
-              </div>
-              <div className="bg-gray-50 rounded-xl p-4">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-gray-600">评分</span>
-                  <span className={`font-bold ${getStatusColor(result.details.合规要求.status)}`}>
-                    {result.details.合规要求.score}分
-                  </span>
+              <div className="border rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center">
+                    <Shield className="text-primary-600 mr-2" size={20} />
+                    <span className="font-medium">合规要求</span>
+                  </div>
+                  <div className="flex items-center">
+                    {getStatusIcon(result.details.合规要求.status)}
+                    <span className="ml-2 font-bold">{result.details.合规要求.score}分</span>
+                  </div>
                 </div>
                 {result.details.合规要求.details && (
-                  <p className="text-sm text-gray-600">{result.details.合规要求.details}</p>
+                  <p className="text-sm text-gray-600 mt-2">{result.details.合规要求.details}</p>
                 )}
               </div>
 
-              <div className="flex items-center gap-2 mb-3">
-                <TrendingUp className="text-primary-600" size={20} />
-                <h4 className="font-semibold text-gray-800">市值达标</h4>
-                {getStatusIcon(result.details.市值达标.status)}
-              </div>
-              <div className="bg-gray-50 rounded-xl p-4">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-gray-600">评分</span>
-                  <span className={`font-bold ${getStatusColor(result.details.市值达标.status)}`}>
-                    {result.details.市值达标.score}分
-                  </span>
+              <div className="border rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center">
+                    <DollarSign className="text-primary-600 mr-2" size={20} />
+                    <span className="font-medium">市值达标</span>
+                  </div>
+                  <div className="flex items-center">
+                    {getStatusIcon(result.details.市值达标.status)}
+                    <span className="ml-2 font-bold">{result.details.市值达标.score}分</span>
+                  </div>
                 </div>
                 {result.details.市值达标.details && (
-                  <p className="text-sm text-gray-600">{result.details.市值达标.details}</p>
+                  <p className="text-sm text-gray-600 mt-2">{result.details.市值达标.details}</p>
                 )}
               </div>
             </div>
@@ -331,17 +325,17 @@ export default function HealthCheckPage() {
             {/* Recommendations */}
             {result.recommendations && result.recommendations.length > 0 && (
               <div>
-                <h4 className="font-semibold text-gray-800 mb-3">改进建议</h4>
+                <h3 className="font-semibold text-gray-800 mb-4">改进建议</h3>
                 <div className="space-y-3">
                   {result.recommendations.map((rec, index) => (
-                    <div key={index} className="flex items-start gap-3 p-4 bg-gray-50 rounded-xl">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${getPriorityColor(rec.priority)}`}>
-                        {rec.priority === 'high' ? '高' : rec.priority === 'medium' ? '中' : '低'}
-                      </span>
-                      <div>
-                        <p className="font-medium text-gray-800">{rec.category}</p>
-                        <p className="text-sm text-gray-600">{rec.suggestion}</p>
+                    <div key={index} className="border rounded-lg p-4">
+                      <div className="flex items-center mb-2">
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${getPriorityColor(rec.priority)}`}>
+                          {rec.priority === 'high' ? '高' : rec.priority === 'medium' ? '中' : '低'}
+                        </span>
+                        <span className="ml-2 font-medium text-gray-700">{rec.category}</span>
                       </div>
+                      <p className="text-sm text-gray-600">{rec.suggestion}</p>
                     </div>
                   ))}
                 </div>
@@ -351,10 +345,8 @@ export default function HealthCheckPage() {
         )}
 
         {/* Disclaimer */}
-        <div className="text-center py-4 mb-24">
-          <p className="text-gray-400 text-xs">
-            本服务仅供参考，不构成投资建议。投资有风险，入市需谨慎。
-          </p>
+        <div className="text-center py-4 mb-8">
+          <p className="text-gray-500 text-sm">本服务仅供参考，不构成投资建议。投资有风险，入市需谨慎。</p>
         </div>
       </div>
     </div>
