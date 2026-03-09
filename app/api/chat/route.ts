@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import expertsConfig from '../../config/experts.json';
+import stocksConfig from '../../config/hk-stocks.json';
 
 // Azure OpenAI 配置 - 使用环境变量
 const AZURE_OPENAI_ENDPOINT = process.env.AZURE_OPENAI_ENDPOINT || '';
@@ -8,25 +9,18 @@ const AZURE_OPENAI_API_KEY = process.env.AZURE_OPENAI_API_KEY || '';
 // 腾讯财经API基础URL
 const TENCENT_FINANCE_API = 'https://qt.gtimg.cn/q=';
 
-// 港股股票代码映射表 - 最可靠的数据源
-const HK_STOCK_MAP: Record<string, { name: string; nameEn: string; industry: string }> = {
-  // 互联网巨头
+// 从外部JSON加载港股股票映射表
+const HK_STOCK_MAP: Record<string, { name: string; nameEn: string; industry: string; listedDate?: string }> = 
+  stocksConfig.stocks || {};
+
+// 备用股票映射 - 确保基本股票能识别
+const FALLBACK_STOCK_MAP: Record<string, { name: string; nameEn: string; industry: string }> = {
   '00700.hk': { name: '腾讯控股', nameEn: 'Tencent Holdings', industry: '互联网' },
   '09988.hk': { name: '阿里巴巴-SW', nameEn: 'Alibaba Group', industry: '互联网' },
   '03690.hk': { name: '美团-W', nameEn: 'Meituan', industry: '互联网' },
-  '01810.hk': { name: '小米集团-W', nameEn: 'Xiaomi Group', industry: '互联网/消费电子' },
+  '01810.hk': { name: '小米集团-W', nameEn: 'Xiaomi Group', industry: '互联网' },
   '02418.hk': { name: '京东集团-SW', nameEn: 'JD.com', industry: '互联网' },
-  '06618.hk': { name: '京东健康', nameEn: 'JD Health', industry: '互联网医疗' },
-  '09618.hk': { name: '京东集团-SW', nameEn: 'JD.com (SW)', industry: '互联网' },
-  
-  // 医疗/医药科技
-  '02569.hk': { name: '微创心通医疗', nameEn: 'MicroPort CardioFlow', industry: '医疗器械' },
-  '02252.hk': { name: '微创机器人', nameEn: 'MicroPort MedBot', industry: '医疗器械' },
-  '03033.hk': { name: '药师帮', nameEn: 'YSB Inc', industry: '医药电商' },
-  '02557.hk': { name: '鹰瞳科技', nameEn: 'Airdoc', industry: '医疗健康' },
-  '02280.hk': { name: '中国先锋医药', nameEn: 'China Pioneer Pharma', industry: '医药' },
-  
-  // 金融
+  '02659.hk': { name: '宝济药业-B', nameEn: 'Baoji Pharma', industry: '生物医药' },
   '06030.hk': { name: '中信证券', nameEn: 'CITIC Securities', industry: '金融' },
   '02318.hk': { name: '中国平安', nameEn: 'Ping An', industry: '保险' },
   '00981.hk': { name: '中芯国际', nameEn: 'SMIC', industry: '半导体' },
@@ -36,44 +30,45 @@ const HK_STOCK_MAP: Record<string, { name: string; nameEn: string; industry: str
   '03988.hk': { name: '中国银行', nameEn: 'BOC', industry: '银行' },
   '00005.hk': { name: '汇丰控股', nameEn: 'HSBC', industry: '银行' },
   '02333.hk': { name: '长城汽车', nameEn: 'Great Wall Motor', industry: '汽车' },
-  '12118.hk': { name: '小鹏汽车-W', nameEn: 'XPeng', industry: '新能源汽车' },
-  '09868.hk': { name: '小鹏汽车-W', nameEn: 'XPeng (SW)', industry: '新能源汽车' },
+  '09868.hk': { name: '小鹏汽车-W', nameEn: 'XPeng', industry: '新能源汽车' },
   '09881.hk': { name: '理想汽车-W', nameEn: 'Li Auto', industry: '新能源汽车' },
-  '02015.hk': { name: '理想汽车-W', nameEn: 'Li Auto (SW)', industry: '新能源汽车' },
-  
-  // 医药生物
   '02219.hk': { name: '复星医药', nameEn: 'Fosun Pharma', industry: '医药' },
   '06677.hk': { name: '药明康德', nameEn: 'WuXi AppTec', industry: '医药' },
   '02269.hk': { name: '药明生物', nameEn: 'WuXi Biologics', industry: '生物医药' },
-  '01885.hk': { name: '康弘药业', nameEn: 'Kanghong Pharma', industry: '医药' },
-  '02552.hk': { name: '华润医药', nameEn: 'China Resources Pharma', industry: '医药' },
-  '02659.hk': { name: '宝济药业-B', nameEn: 'Baoji Pharma', industry: '生物医药' },
-  '01548.hk': { name: '金斯瑞生物科技', nameEn: 'GenScript', industry: '生物医药' },
-  '02255.hk': { name: '沛嘉医疗', nameEn: 'Peijia Medical', industry: '医疗器械' },
-  '09955.hk': { name: '先声药业', nameEn: 'Simcere Pharmaceutical', industry: '医药' },
-  '06606.hk': { name: '复宏汉霖', nameEn: 'Henlius', industry: '生物医药' },
-  '02181.hk': { name: '康龙化成', nameEn: 'PharmaLon', industry: '医药研发' },
-  
-  // 消费
   '01928.hk': { name: '金沙中国', nameEn: 'Las Vegas Sands', industry: '博彩旅游' },
   '00027.hk': { name: '银河娱乐', nameEn: 'Galaxy Entertainment', industry: '博彩旅游' },
-  '01171.hk': { name: '华润啤酒', nameEn: 'CR Beer', industry: '消费' },
   '00388.hk': { name: '香港交易所', nameEn: 'HKEX', industry: '金融' },
-  '02319.hk': { name: '蒙牛乳业', nameEn: 'Mengniu Dairy', industry: '食品饮料' },
-  '02291.hk': { name: '农夫山泉', nameEn: 'Nongfu Spring', industry: '食品饮料' },
-  '06858.hk': { name: '海底捞', nameEn: 'Haidilao', industry: '餐饮' },
-  
-  // 地产
   '01109.hk': { name: '华润置地', nameEn: 'CR Land', industry: '房地产' },
-  '06808.hk': { name: '中国奥园', nameEn: 'China Aoyuan', industry: '房地产' },
-  '02777.hk': { name: '富力地产', nameEn: 'R&F Properties', industry: '房地产' },
-  '00175.hk': { name: '恒生银行', nameEn: 'Hang Seng Bank', industry: '银行' },
-  
-  // 科技
-  '00384.hk': { name: '中国燃气', nameEn: 'China Gas', industry: '公用事业' },
-  '02656.hk': { name: '中航资本', nameEn: 'AVIC Capital', industry: '金融' },
   '02020.hk': { name: '安踏体育', nameEn: 'ANTA Sports', industry: '消费' },
+  '09999.hk': { name: '网易-S', nameEn: 'NetEase', industry: '互联网' },
+  '09699.hk': { name: '携程集团-S', nameEn: 'Trip.com', industry: '互联网' },
+  '02559.hk': { name: '快手-W', nameEn: 'Kuaishou', industry: '互联网' },
+  '01877.hk': { name: '百济神州', nameEn: 'BeiGene', industry: '生物医药' },
+  '00099.hk': { name: '中国通信服务', nameEn: 'China Communications Services', industry: '通信' },
+  '02382.hk': { name: '舜宇光学科技', nameEn: 'Sunny Optical', industry: '光学' },
+  '00002.hk': { name: '中电控股', nameEn: 'CLP Holdings', industry: '公用事业' },
+  '00003.hk': { name: '香港中华煤气', nameEn: 'HK & China Gas', industry: '公用事业' },
+  '00011.hk': { name: '恒生银行', nameEn: 'Hang Seng Bank', industry: '银行' },
+  '00175.hk': { name: '吉利汽车', nameEn: 'Geely Automobile', industry: '汽车' },
+  '00728.hk': { name: '中国电信', nameEn: 'China Telecom', industry: '通信' },
+  '00998.hk': { name: '中银香港', nameEn: 'BOCHK', industry: '银行' },
+  '03968.hk': { name: '招商银行', nameEn: 'CMB', industry: '银行' },
+  '01919.hk': { name: '中远海控', nameEn: 'COSCO Shipping', industry: '航运' },
+  '06690.hk': { name: '海尔智家', nameEn: 'Haier Smart Home', industry: '消费' },
+  '00291.hk': { name: '华润啤酒', nameEn: 'CR Beer', industry: '消费' },
+  '03606.hk': { name: '蒙牛乳业', nameEn: 'Mengniu Dairy', industry: '消费' },
+  '01093.hk': { name: '石药集团', nameEn: 'CSPC Pharmaceutical', industry: '医药' },
+  '06618.hk': { name: '京东健康', nameEn: 'JD Health', industry: '互联网医疗' },
+  '01548.hk': { name: '金斯瑞生物科技', nameEn: 'GenScript Biotech', industry: '生物医药' },
+  '01801.hk': { name: '信达生物', nameEn: 'Innovent Biologics', industry: '生物医药' },
+  '09618.hk': { name: '百度集团-SW', nameEn: 'Baidu', industry: '互联网' },
+  '02569.hk': { name: '再鼎医药', nameEn: 'Zai Lab', industry: '生物医药' },
+  '09939.hk': { name: '康方生物', nameEn: 'Akeso', industry: '生物医药' },
+  '01531.hk': { name: '康希诺生物', nameEn: 'CanSino Biologics', industry: '生物医药' },
 };
+
+// 合并两个数据源
+const COMBINED_STOCK_MAP = { ...FALLBACK_STOCK_MAP, ...HK_STOCK_MAP };
 
 // 港股股票代码规范化
 function normalizeStockCode(code: string): string {
@@ -110,8 +105,8 @@ function extractStockCodes(message: string): string[] {
 async function getStockData(stockCode: string): Promise<any> {
   const normalizedCode = normalizeStockCode(stockCode);
   
-  // 遍历映射表进行大小写不敏感匹配
-  for (const [key, info] of Object.entries(HK_STOCK_MAP)) {
+  // 遍历合并后的映射表进行大小写不敏感匹配
+  for (const [key, info] of Object.entries(COMBINED_STOCK_MAP)) {
     if (key.toLowerCase() === normalizedCode.toLowerCase()) {
       return {
         code: key.toUpperCase(),  // 保持原始格式显示
