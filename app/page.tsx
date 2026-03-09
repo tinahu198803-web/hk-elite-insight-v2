@@ -190,6 +190,31 @@ export default function Home() {
           </div>
         </section>
 
+        {/* 港股IPO专家团队 - 移到热门IPO上面 */}
+        <section className="mb-16">
+          <div 
+            className="bg-gradient-to-r from-primary-600 to-primary-800 rounded-2xl p-8 cursor-pointer hover:from-primary-700 hover:to-primary-900 transition"
+            onClick={() => window.location.href = '/experts'}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center">
+                  <Users className="text-white" size={32} />
+                </div>
+                <div className="text-left">
+                  <h2 className="text-2xl font-bold text-white mb-2">港股IPO专家团队</h2>
+                  <p className="text-primary-100">7位顶尖专家，为您提供全方位咨询服务</p>
+                  <div className="flex items-center mt-2 space-x-2">
+                    <Sparkles className="text-gold-400" size={16} />
+                    <span className="text-gold-300 text-sm">港股通体检 · 招股书分析 · 上市规划 · 合规审查 · 估值定价 · 指数纳入 · 入港股通规划</span>
+                  </div>
+                </div>
+              </div>
+              <ChevronRight className="text-white" size={32} />
+            </div>
+          </div>
+        </section>
+
         {/* 热门IPO */}
         <section className="mb-16">
           <div className="flex items-center justify-between mb-6">
@@ -230,31 +255,6 @@ export default function Home() {
               <button className="bg-primary-900 text-white px-8 py-3 rounded-xl font-medium hover:bg-primary-800 transition">
                 年卡 ¥1999/年（省¥590）
               </button>
-            </div>
-          </div>
-        </section>
-
-        {/* 专家团队入口 */}
-        <section className="mb-16">
-          <div 
-            className="bg-gradient-to-r from-primary-600 to-primary-800 rounded-2xl p-8 cursor-pointer hover:from-primary-700 hover:to-primary-900 transition"
-            onClick={() => window.location.href = '/experts'}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center">
-                  <Users className="text-white" size={32} />
-                </div>
-                <div className="text-left">
-                  <h2 className="text-2xl font-bold text-white mb-2">港股IPO专家团队</h2>
-                  <p className="text-primary-100">7位顶尖专家，为您提供全方位咨询服务</p>
-                  <div className="flex items-center mt-2 space-x-2">
-                    <Sparkles className="text-gold-400" size={16} />
-                    <span className="text-gold-300 text-sm">港股通体检 · 招股书分析 · 上市规划 · 合规审查 · 估值定价 · 指数纳入 · 入港股通规划</span>
-                  </div>
-                </div>
-              </div>
-              <ChevronRight className="text-white" size={32} />
             </div>
           </div>
         </section>
