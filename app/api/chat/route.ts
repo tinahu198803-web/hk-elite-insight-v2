@@ -61,7 +61,7 @@ const HK_STOCK_MAP: Record<string, { name: string; nameEn: string; industry: str
   '00388.hk': { name: '香港交易所', nameEn: 'HKEX', industry: '金融' },
   '02319.hk': { name: '蒙牛乳业', nameEn: 'Mengniu Dairy', industry: '食品饮料' },
   '02291.hk': { name: '农夫山泉', nameEn: 'Nongfu Spring', industry: '食品饮料' },
-  '03690.hk': { name: '海底捞', nameEn: 'Haidilao', industry: '餐饮' },
+  '06858.hk': { name: '海底捞', nameEn: 'Haidilao', industry: '餐饮' },
   
   // 地产
   '01109.hk': { name: '华润置地', nameEn: 'CR Land', industry: '房地产' },
@@ -73,8 +73,6 @@ const HK_STOCK_MAP: Record<string, { name: string; nameEn: string; industry: str
   '00384.hk': { name: '中国燃气', nameEn: 'China Gas', industry: '公用事业' },
   '02656.hk': { name: '中航资本', nameEn: 'AVIC Capital', industry: '金融' },
   '02020.hk': { name: '安踏体育', nameEn: 'ANTA Sports', industry: '消费' },
-  '02318.hk': { name: '中国平安', nameEn: 'Ping An', industry: '保险' },
-  '00939.hk': { name: '建设银行', nameEn: 'CCB', industry: '银行' },
 };
 
 // 港股股票代码规范化
