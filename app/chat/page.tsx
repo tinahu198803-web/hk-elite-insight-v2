@@ -11,6 +11,18 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  detectedStocks?: StockInfo[];
+}
+
+// 股票信息类型
+interface StockInfo {
+  code: string;
+  name: string;
+  nameEn: string;
+  industry: string;
+  price: number;
+  change: number;
+  changePct: number;
 }
 
 // 专家类型
@@ -189,7 +201,8 @@ ${expertData.features?.map(f => `• ${f}`).join('\n')}
           id: (Date.now() + 1).toString(),
           role: 'assistant',
           content: result.data.response,
-          timestamp: new Date()
+          timestamp: new Date(),
+          detectedStocks: result.data.detectedStocks
         };
         setMessages(prev => [...prev, aiMessage]);
       } else {
@@ -300,6 +313,35 @@ ${expertData.features?.map(f => `• ${f}`).join('\n')}
                       <p key={idx} className="mb-1 last:mb-0">{line || <br />}</p>
                     ))}
                   </div>
+
+                  {/* 股票信息卡片 */}
+                  {message.role === 'assistant' && message.detectedStocks && message.detectedStocks.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-white/20">
+                      <div className="text-xs text-gray-400 mb-2">识别到的股票：</div>
+                      <div className="space-y-2">
+                        {message.detectedStocks.map((stock, idx) => (
+                          <div key={idx} className="bg-white/10 rounded-lg p-3 border border-white/10">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <div className="font-bold text-white">{stock.name}</div>
+                                <div className="text-xs text-gray-400">{stock.nameEn}</div>
+                                <div className="text-xs text-gray-500 mt-1">{stock.industry}</div>
+                              </div>
+                              <div className="text-right">
+                                <div className="font-bold text-white">{stock.code}</div>
+                                <div className="text-sm text-white">{stock.price > 0 ? `${stock.price}港元` : '暂无报价'}</div>
+                                {stock.price > 0 && (
+                                  <div className={`text-xs ${stock.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                    {stock.change >= 0 ? '+' : ''}{stock.change} ({stock.changePct}%)
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* 复制按钮 */}
                   {message.role === 'assistant' && (

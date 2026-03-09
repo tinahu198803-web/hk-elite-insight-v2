@@ -240,6 +240,7 @@ export async function POST(request: Request) {
     // 自动提取并查询股票代码
     const stockCodes = extractStockCodes(message);
     let stockInfoContext = '';
+    let validStocks: any[] = []; // 在外部声明以便后续使用
     
     // 如果有历史对话，检查是否需要清除之前的错误股票信息
     const hasStockInHistory = history && history.some((msg: any) => 
@@ -251,7 +252,7 @@ export async function POST(request: Request) {
       const stockDataPromises = uniqueCodes.slice(0, 3).map(code => getStockData(code));
       const stockResults = await Promise.all(stockDataPromises);
       
-      const validStocks = stockResults.filter(s => s !== null);
+      validStocks = stockResults.filter(s => s !== null);
       const notFoundStocks = uniqueCodes.filter((code, idx) => stockResults[idx] === null);
       
       if (validStocks.length > 0) {
@@ -309,13 +310,29 @@ export async function POST(request: Request) {
         expert.maxTokens
       );
 
+      // 构建返回数据
+      const responseData: any = {
+        expert: expert.name,
+        response: aiResponse,
+        timestamp: new Date().toISOString()
+      };
+
+      // 如果检测到股票代码，直接在返回中包含股票信息
+      if (stockCodes.length > 0 && validStocks.length > 0) {
+        responseData.detectedStocks = validStocks.map((stock: any) => ({
+          code: stock.code,
+          name: stock.name,
+          nameEn: stock.nameEn,
+          industry: stock.industry,
+          price: stock.price,
+          change: stock.change,
+          changePct: stock.changePct
+        }));
+      }
+
       return NextResponse.json({
         success: true,
-        data: {
-          expert: expert.name,
-          response: aiResponse,
-          timestamp: new Date().toISOString()
-        }
+        data: responseData
       });
     } catch (aiError: any) {
       console.error('AI调用失败:', aiError);
