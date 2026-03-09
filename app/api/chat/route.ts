@@ -87,42 +87,44 @@ function normalizeStockCode(code: string): string {
   return normalized;
 }
 
-// 提取消息中的股票代码
+// 提取消息中的股票代码 - 支持各种格式
 function extractStockCodes(message: string): string[] {
-  // 匹配各种格式的港股代码：00700.hk, 00700, 02659.hk 等
-  const stockCodePattern = /\b(0\d{4}\.?(?:hk|HK)?)\b/gi;
+  // 匹配各种格式的港股代码：00700.hk, 00700, 02659.hk, 02569.HK 等
+  // 匹配4-5位数字，可选的.hk后缀（大小写不敏感）
+  const stockCodePattern = /\b(0\d{4,5}(?:\.hk|\.HK)?)\b/gi;
   const matches = message.match(stockCodePattern) || [];
-  // 过滤并标准化
+  
+  // 过滤并标准化 - 移除点号和hk后缀，然后重新添加
   return matches
     .map(code => {
-      let cleaned = code.replace(/\./g, '').toLowerCase();
-      if (!cleaned.endsWith('hk')) {
-        cleaned += 'hk';
-      }
-      return cleaned;
+      // 移除所有非数字字符
+      let cleaned = code.replace(/\D/g, '');
+      // 保持前导零（港股代码需要）
+      cleaned = cleaned.padStart(5, '0').slice(-5);
+      return cleaned + '.hk';  // 统一使用小写
     })
-    .filter(code => code.length >= 6 && code.length <= 7); // 例如 00700.hk
+    .filter(code => code.length === 6); // 格式如 02569.hk
 }
 
-// 获取股票数据 - 优先使用本地映射表，确保准确性
-async function getStockData(stockCode: string) {
-  // 首先检查本地映射表
+// 获取股票数据 - 大小写不敏感匹配
+async function getStockData(stockCode: string): Promise<any> {
   const normalizedCode = normalizeStockCode(stockCode);
   
-  // 检查本地映射
-  if (HK_STOCK_MAP[normalizedCode]) {
-    const info = HK_STOCK_MAP[normalizedCode];
-    return {
-      code: normalizedCode.toUpperCase(),  // 显示时转大写
-      name: info.name,
-      nameEn: info.nameEn,
-      industry: info.industry,
-      price: 0,  // 本地映射不包含实时价格
-      change: 0,
-      changePct: 0,
-      marketCap: 0,
-      source: 'local'
-    };
+  // 遍历映射表进行大小写不敏感匹配
+  for (const [key, info] of Object.entries(HK_STOCK_MAP)) {
+    if (key.toLowerCase() === normalizedCode.toLowerCase()) {
+      return {
+        code: key.toUpperCase(),  // 保持原始格式显示
+        name: info.name,
+        nameEn: info.nameEn,
+        industry: info.industry,
+        price: 0,
+        change: 0,
+        changePct: 0,
+        marketCap: 0,
+        source: 'local'
+      };
+    }
   }
   
   // 尝试API获取实时数据
