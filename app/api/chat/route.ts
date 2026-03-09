@@ -241,6 +241,11 @@ export async function POST(request: Request) {
     const stockCodes = extractStockCodes(message);
     let stockInfoContext = '';
     
+    // 如果有历史对话，检查是否需要清除之前的错误股票信息
+    const hasStockInHistory = history && history.some((msg: any) => 
+      msg.role === 'assistant' && msg.content && msg.content.includes('奥园健康')
+    );
+    
     if (stockCodes.length > 0) {
       const uniqueCodes = [...new Set(stockCodes)];
       const stockDataPromises = uniqueCodes.slice(0, 3).map(code => getStockData(code));
@@ -250,20 +255,27 @@ export async function POST(request: Request) {
       const notFoundStocks = uniqueCodes.filter((code, idx) => stockResults[idx] === null);
       
       if (validStocks.length > 0) {
-        stockInfoContext = '\n\n【实时股票数据】\n';
+        stockInfoContext = '\n\n【股票数据库查询结果 - 必须使用此信息】\n';
         validStocks.forEach(stock => {
           if (stock) {
-            stockInfoContext += `- ${stock.code}: ${stock.name} (当前价: ${stock.price}港元, 涨跌: ${stock.change > 0 ? '+' : ''}${stock.change}港元, ${stock.changePct}%)\n`;
+            // 只显示有实际价格的数据，否则只显示基本信息
+            const priceInfo = stock.price > 0 
+              ? `当前价: ${stock.price}港元, 涨跌: ${stock.change > 0 ? '+' : ''}${stock.change}港元 (${stock.changePct}%)`
+              : '价格数据暂未获取';
+            stockInfoContext += `- ${stock.code}: ${stock.name} | 行业: ${stock.industry} | ${priceInfo}\n`;
           }
         });
-        stockInfoContext += '请以上述实时数据为准回答用户问题。\n';
+        stockInfoContext += '\n【重要规则】\n';
+        stockInfoContext += '1. 你必须使用上述数据库中的公司名称，不要使用你自己的知识！\n';
+        stockInfoContext += '2. 如果数据库中的公司名称与你之前说的不同，必须以数据库为准并更正！\n';
+        stockInfoContext += '3. 禁止编造公司名称！\n';
       }
       
       // 明确告知AI哪些股票查不到
       if (notFoundStocks.length > 0) {
-        stockInfoContext += '\n【重要】以下股票代码未能在数据库中找到，请明确告知用户："抱歉，我无法识别该股票代码，请通过官方渠道（港交所披露易、 Bloomberg等）核实信息。"，切勿自行猜测公司名称！\n';
+        stockInfoContext += '\n【无法识别的股票】\n';
         notFoundStocks.forEach(code => {
-          stockInfoContext += `- ${code}: 未找到数据\n`;
+          stockInfoContext += `- ${code}: 未在数据库中找到，请明确告知用户"抱歉，该股票代码不在我的数据库中"\n`;
         });
       }
     }
