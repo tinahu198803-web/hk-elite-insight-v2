@@ -77,8 +77,8 @@ const HK_STOCK_MAP: Record<string, { name: string; nameEn: string; industry: str
 
 // 港股股票代码规范化
 function normalizeStockCode(code: string): string {
-  let normalized = code.trim().toUpperCase();
-  if (normalized.endsWith('.HK')) {
+  let normalized = code.trim().toLowerCase();  // 改为小写
+  if (normalized.endsWith('.hk')) {
     return normalized;
   }
   if (/^\d+$/.test(normalized)) {
@@ -113,7 +113,7 @@ async function getStockData(stockCode: string) {
   if (HK_STOCK_MAP[normalizedCode]) {
     const info = HK_STOCK_MAP[normalizedCode];
     return {
-      code: normalizedCode.toUpperCase(),
+      code: normalizedCode.toUpperCase(),  // 显示时转大写
       name: info.name,
       nameEn: info.nameEn,
       industry: info.industry,
