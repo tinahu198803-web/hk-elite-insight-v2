@@ -23,6 +23,8 @@ interface StockInfo {
   price: number;
   change: number;
   changePct: number;
+  marketCap?: number;
+  turnover?: number;
 }
 
 // 专家类型
@@ -322,16 +324,28 @@ ${expertData.features?.map(f => `• ${f}`).join('\n')}
                         {message.detectedStocks.map((stock, idx) => (
                           <div key={idx} className="bg-white/10 rounded-lg p-3 border border-white/10">
                             <div className="flex justify-between items-start">
-                              <div>
-                                <div className="font-bold text-white">{stock.name}</div>
+                              <div className="flex-1">
+                                <div className="font-bold text-white text-lg">{stock.name}</div>
                                 <div className="text-xs text-gray-400">{stock.nameEn}</div>
                                 <div className="text-xs text-gray-500 mt-1">{stock.industry}</div>
+                                {stock.marketCap && stock.marketCap > 0 && (
+                                  <div className="text-xs text-blue-300 mt-2">
+                                    流动市值: {(stock.marketCap / 100000000).toFixed(2)}亿港元
+                                  </div>
+                                )}
+                                {stock.turnover && stock.turnover > 0 && (
+                                  <div className="text-xs text-gray-400">
+                                    成交量: {(stock.turnover / 1000000).toFixed(2)}万股
+                                  </div>
+                                )}
                               </div>
-                              <div className="text-right">
-                                <div className="font-bold text-white">{stock.code}</div>
-                                <div className="text-sm text-white">{stock.price > 0 ? `${stock.price}港元` : '暂无报价'}</div>
+                              <div className="text-right ml-4">
+                                <div className="font-bold text-gray-300">{stock.code}</div>
+                                <div className="text-xl font-bold text-white mt-1">
+                                  {stock.price > 0 ? `${stock.price}港元` : '暂无'}
+                                </div>
                                 {stock.price > 0 && (
-                                  <div className={`text-xs ${stock.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                  <div className={`text-sm font-medium ${stock.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                                     {stock.change >= 0 ? '+' : ''}{stock.change} ({stock.changePct}%)
                                   </div>
                                 )}

@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import expertsConfig from '../../config/experts.json';
 import stocksConfig from '../../config/hk-stocks.json';
 
 // Azure OpenAI 配置 - 使用环境变量
 const AZURE_OPENAI_ENDPOINT = process.env.AZURE_OPENAI_ENDPOINT || '';
 const AZURE_OPENAI_API_KEY = process.env.AZURE_OPENAI_API_KEY || '';
+const AZURE_OPENAI_DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o';
 
 // 腾讯财经API基础URL
 const TENCENT_FINANCE_API = 'https://qt.gtimg.cn/q=';
@@ -101,35 +103,56 @@ function extractStockCodes(message: string): string[] {
     .filter(code => code.length === 6); // 格式如 02569.hk
 }
 
-// 获取股票数据 - 大小写不敏感匹配
+// 获取股票数据 - 优先本地映射，确保名称准确
 async function getStockData(stockCode: string): Promise<any> {
   const normalizedCode = normalizeStockCode(stockCode);
+  let localInfo = null;
   
-  // 遍历合并后的映射表进行大小写不敏感匹配
+  // 1. 首先从本地映射获取公司名称（这是最准确的）
   for (const [key, info] of Object.entries(COMBINED_STOCK_MAP)) {
     if (key.toLowerCase() === normalizedCode.toLowerCase()) {
-      return {
-        code: key.toUpperCase(),  // 保持原始格式显示
-        name: info.name,
-        nameEn: info.nameEn,
-        industry: info.industry,
-        price: 0,
-        change: 0,
-        changePct: 0,
-        marketCap: 0,
-        source: 'local'
-      };
+      localInfo = { code: key, ...info };
+      break;
     }
   }
   
-  // 尝试API获取实时数据
+  // 2. 尝试从API获取实时数据
   const apiResult = await getStockDataFromAPI(stockCode);
+  
   if (apiResult) {
-    return apiResult;
+    // 如果API成功，合并本地名称和API数据（以本地名称为准）
+    return {
+      code: apiResult.code,
+      name: localInfo ? localInfo.name : apiResult.name, // 优先本地名称
+      nameEn: localInfo ? localInfo.nameEn : apiResult.nameEn,
+      industry: localInfo ? localInfo.industry : apiResult.industry,
+      price: apiResult.price,
+      change: apiResult.change,
+      changePct: apiResult.changePct,
+      marketCap: apiResult.marketCap,
+      turnover: apiResult.turnover,
+      source: 'realtime'
+    };
   }
   
-  // 如果都查不到，使用搜索API获取新股信息
-  return searchStockData(stockCode);
+  // 3. 如果本地有记录但API失败，返回本地数据
+  if (localInfo) {
+    return {
+      code: localInfo.code.toUpperCase(),
+      name: localInfo.name,
+      nameEn: localInfo.nameEn,
+      industry: localInfo.industry,
+      price: 0,
+      change: 0,
+      changePct: 0,
+      marketCap: 0,
+      turnover: 0,
+      source: 'local'
+    };
+  }
+  
+  // 4. 完全查不到
+  return null;
 }
 
 // 使用搜索API获取新股信息
@@ -152,13 +175,15 @@ async function searchStockData(stockCode: string) {
 // 从API获取股票数据
 async function getStockDataFromAPI(stockCode: string) {
   try {
-    const normalizedCode = normalizeStockCode(stockCode);
-    const url = `${TENCENT_FINANCE_API}${normalizedCode}`;
+    // 规范化代码（移除.hk后缀用于API查询）
+    const codeNum = stockCode.replace(/\.hk$/i, '').replace(/^0+/, '').padStart(5, '0');
+    const url = `${TENCENT_FINANCE_API}${codeNum}`;
     
     const response = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       },
+      next: { revalidate: 60 } // 缓存60秒
     });
 
     if (!response.ok) {
@@ -174,17 +199,38 @@ async function getStockDataFromAPI(stockCode: string) {
 
     const dataParts = match[1].split(',');
     
-    if (dataParts.length < 10) {
+    if (dataParts.length < 50) {
       return null;
     }
 
+    // 腾讯API返回的数据
+    const price = parseFloat(dataParts[1]) || 0;
+    const change = parseFloat(dataParts[2]) || 0;
+    const changePct = parseFloat(dataParts[3]) || 0;
+    const marketCap = parseFloat(dataParts[45]) || 0; // 港股市值（单位：港币）
+    const turnover = parseFloat(dataParts[38]) || 0; // 成交量
+    
+    // 优先从本地映射获取准确的公司名称
+    const normalizedCode = normalizeStockCode(stockCode);
+    let localInfo = null;
+    for (const [key, info] of Object.entries(COMBINED_STOCK_MAP)) {
+      if (key.toLowerCase() === normalizedCode.toLowerCase()) {
+        localInfo = info;
+        break;
+      }
+    }
+
     return {
-      code: normalizedCode.toUpperCase(),
-      name: dataParts[0],           // 股票名称
-      price: parseFloat(dataParts[1]),
-      change: parseFloat(dataParts[2]),
-      changePct: parseFloat(dataParts[3]),
-      marketCap: parseFloat(dataParts[45]),
+      code: codeNum + '.HK',
+      name: localInfo ? localInfo.name : dataParts[0], // 优先使用本地映射的公司名
+      nameEn: localInfo ? localInfo.nameEn : '',
+      industry: localInfo ? localInfo.industry : dataParts[57] || '未知',
+      price: price,
+      change: change,
+      changePct: changePct,
+      marketCap: marketCap, // 已经是港币
+      turnover: turnover,
+      source: 'realtime'
     };
   } catch (error) {
     console.error('获取股票数据失败:', error);
@@ -221,6 +267,61 @@ async function callAzureOpenAI(messages: any[], temperature: number = 0.7, maxTo
   }
 }
 
+// 定义可用的函数 - 股票查询工具
+const FUNCTIONS = [
+  {
+    type: "function",
+    function: {
+      name: "get_stock_info",
+      description: "获取港股股票的基本信息和实时行情数据。当用户询问任何关于港股股票的问题时，必须先调用此函数获取准确的股票信息。",
+      parameters: {
+        type: "object",
+        properties: {
+          stock_code: {
+            type: "string",
+            description: "港股股票代码，格式如 00700、09988、02659（不需要.hk后缀）"
+          }
+        },
+        required: ["stock_code"]
+      }
+    }
+  },
+  {
+    type: "function", 
+    function: {
+      name: "check_stock_connect_eligibility",
+      description: "检查港股股票是否符合港股通（南向）纳入条件。根据恒生综合指数成分股、市值门槛等规则进行判定。",
+      parameters: {
+        type: "object",
+        properties: {
+          stock_code: {
+            type: "string",
+            description: "港股股票代码"
+          }
+        },
+        required: ["stock_code"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "check_hsi_eligibility", 
+      description: "检查港股股票是否符合恒生指数（HSI）纳入条件。包括市值排名、行业代表性等要求。",
+      parameters: {
+        type: "object",
+        properties: {
+          stock_code: {
+            type: "string",
+            description: "港股股票代码"
+          }
+        },
+        required: ["stock_code"]
+      }
+    }
+  }
+];
+
 // 聊天API
 export async function POST(request: Request) {
   try {
@@ -237,64 +338,62 @@ export async function POST(request: Request) {
       }, { status: 404 });
     }
 
-    // 自动提取并查询股票代码
+    // 预提取股票代码并查询数据（核心修复：先查数据，再问AI）
     const stockCodes = extractStockCodes(message);
+    let stockDataResults: any[] = [];
     let stockInfoContext = '';
-    let validStocks: any[] = []; // 在外部声明以便后续使用
-    
-    // 如果有历史对话，检查是否需要清除之前的错误股票信息
-    const hasStockInHistory = history && history.some((msg: any) => 
-      msg.role === 'assistant' && msg.content && msg.content.includes('奥园健康')
-    );
     
     if (stockCodes.length > 0) {
-      const uniqueCodes = [...new Set(stockCodes)];
-      const stockDataPromises = uniqueCodes.slice(0, 3).map(code => getStockData(code));
+      const uniqueCodes = [...new Set(stockCodes)].slice(0, 3);
+      
+      // 并行查询所有股票数据
+      const stockDataPromises = uniqueCodes.map(code => getStockData(code));
       const stockResults = await Promise.all(stockDataPromises);
       
-      validStocks = stockResults.filter(s => s !== null);
-      const notFoundStocks = uniqueCodes.filter((code, idx) => stockResults[idx] === null);
+      stockDataResults = stockResults.filter(s => s !== null);
       
-      if (validStocks.length > 0) {
-        stockInfoContext = '\n\n【股票数据库查询结果 - 必须使用此信息】\n';
-        validStocks.forEach(stock => {
-          if (stock) {
-            // 只显示有实际价格的数据，否则只显示基本信息
-            const priceInfo = stock.price > 0 
-              ? `当前价: ${stock.price}港元, 涨跌: ${stock.change > 0 ? '+' : ''}${stock.change}港元 (${stock.changePct}%)`
-              : '价格数据暂未获取';
-            stockInfoContext += `- ${stock.code}: ${stock.name} | 行业: ${stock.industry} | ${priceInfo}\n`;
-          }
+      // 构建股票信息上下文（强制AI使用）
+      if (stockDataResults.length > 0) {
+        stockInfoContext = `\n\n【股票数据查询结果 - 必须严格使用以下信息，禁止编造】\n`;
+        stockDataResults.forEach(stock => {
+          const priceInfo = stock.price > 0 
+            ? `当前价: ${stock.price}港元, 涨跌: ${stock.change > 0 ? '+' : ''}${stock.change}港元 (${stock.changePct}%), 流动市值: ${(stock.marketCap / 100000000).toFixed(2)}亿港元`
+            : '价格数据暂未获取';
+            
+          stockInfoContext += `股票代码: ${stock.code}
+公司名称: ${stock.name}
+英文名称: ${stock.nameEn}
+所属行业: ${stock.industry}
+${priceInfo}
+---\n`;
         });
-        stockInfoContext += '\n【重要规则】\n';
-        stockInfoContext += '1. 你必须使用上述数据库中的公司名称，不要使用你自己的知识！\n';
-        stockInfoContext += '2. 如果数据库中的公司名称与你之前说的不同，必须以数据库为准并更正！\n';
-        stockInfoContext += '3. 禁止编造公司名称！\n';
-      }
-      
-      // 明确告知AI哪些股票查不到
-      if (notFoundStocks.length > 0) {
-        stockInfoContext += '\n【无法识别的股票】\n';
-        notFoundStocks.forEach(code => {
-          stockInfoContext += `- ${code}: 未在数据库中找到，请明确告知用户"抱歉，该股票代码不在我的数据库中"\n`;
-        });
+        
+        stockInfoContext += `【强制规则 - 违反将被严厉处罚】\n`;
+        stockInfoContext += `1. 上述公司名称是唯一正确答案！禁止使用任何其他名称！\n`;
+        stockInfoContext += `2. 如果你之前说的名称与上述不同，必须立即更正并道歉！\n`;
+        stockInfoContext += `3. 回答中必须包含上述股票代码和名称作为证据！\n`;
+        stockInfoContext += `4. 如果用户问的是关于这些股票的问题，必须引用上述数据！\n`;
       }
     }
 
-    // 构建消息列表
+    // 构建系统提示
     let systemPrompt = expert.systemPrompt;
-    // 如果有股票信息，添加到系统提示中
     if (stockInfoContext) {
       systemPrompt += stockInfoContext;
     }
     
-    const messages = [
+    // 添加专家特定的系统提示
+    systemPrompt += `\n\n【专家身份】\n你是 ${expert.name}。${expert.description || ''}\n请用专业的口吻回答用户的问题。`;
+
+    // 构建消息列表
+    const messages: any[] = [
       { role: 'system', content: systemPrompt }
     ];
 
-    // 添加历史对话
+    // 添加历史对话（只保留最近5轮）
     if (history && Array.isArray(history)) {
-      history.forEach((msg: any) => {
+      const recentHistory = history.slice(-10);
+      recentHistory.forEach((msg: any) => {
         messages.push({ role: msg.role, content: msg.content });
       });
     }
@@ -302,10 +401,11 @@ export async function POST(request: Request) {
     // 添加当前消息
     messages.push({ role: 'user', content: message });
 
+    // 调用Azure OpenAI（带Function Calling）
     try {
-      // 调用Azure OpenAI
-      const aiResponse = await callAzureOpenAI(
+      const aiResponse = await callAzureOpenAIWithFunctions(
         messages,
+        stockCodes.length > 0 ? FUNCTIONS : [],
         expert.temperature,
         expert.maxTokens
       );
@@ -317,16 +417,17 @@ export async function POST(request: Request) {
         timestamp: new Date().toISOString()
       };
 
-      // 如果检测到股票代码，直接在返回中包含股票信息
-      if (stockCodes.length > 0 && validStocks.length > 0) {
-        responseData.detectedStocks = validStocks.map((stock: any) => ({
+      // 始终返回股票信息（即使AI没有正确使用）
+      if (stockDataResults.length > 0) {
+        responseData.detectedStocks = stockDataResults.map((stock: any) => ({
           code: stock.code,
           name: stock.name,
           nameEn: stock.nameEn,
           industry: stock.industry,
-          price: stock.price,
-          change: stock.change,
-          changePct: stock.changePct
+          price: stock.price || 0,
+          change: stock.change || 0,
+          changePct: stock.changePct || 0,
+          marketCap: stock.marketCap || 0
         }));
       }
 
@@ -337,16 +438,19 @@ export async function POST(request: Request) {
     } catch (aiError: any) {
       console.error('AI调用失败:', aiError);
       
-      // 返回模拟响应（演示模式）
+      // 返回带股票数据的结果
       return NextResponse.json({
         success: true,
         data: {
           expert: expert.name,
-          response: getFallbackResponse(expertId, message),
+          response: `抱歉，AI服务暂时不可用。但以下是您查询的股票信息：\n\n${
+            stockDataResults.map(s => `【${s.code}】${s.name} (${s.nameEn})\n行业: ${s.industry}\n当前价: ${s.price > 0 ? s.price + '港元' : '暂无'}\n涨跌: ${s.price > 0 ? (s.change > 0 ? '+' : '') + s.change + '港元 (' + s.changePct + '%)' : '暂无'}\n`).join('\n')
+          }\n\n如需完整分析，请稍后重试。`,
           timestamp: new Date().toISOString(),
+          detectedStocks: stockDataResults,
           isDemo: true
         },
-        message: '演示模式（AI服务暂时不可用）'
+        message: 'AI服务暂时不可用，已返回基础股票数据'
       });
     }
 
@@ -357,6 +461,120 @@ export async function POST(request: Request) {
       success: false,
       error: error.message || '聊天服务出现错误'
     }, { status: 500 });
+  }
+}
+
+// 调用Azure OpenAI API（支持Function Calling）
+async function callAzureOpenAIWithFunctions(
+  messages: any[], 
+  functions: any[] = [],
+  temperature: number = 0.7, 
+  maxTokens: number = 2000
+) {
+  try {
+    const requestBody: any = {
+      messages: messages,
+      temperature: temperature,
+      max_tokens: maxTokens,
+    };
+
+    // 如果有函数定义，添加到请求中
+    if (functions.length > 0) {
+      requestBody.tools = functions;
+      requestBody.tool_choice = "auto";
+    }
+
+    const response = await fetch(AZURE_OPENAI_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'api-key': AZURE_OPENAI_API_KEY,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Azure OpenAI API error: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    const assistantMessage = data.choices[0].message;
+    
+    // 如果AI调用了函数，处理函数调用结果
+    if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
+      // 添加助手的消息（包含函数调用）
+      messages.push(assistantMessage);
+      
+      // 处理每个函数调用
+      for (const toolCall of assistantMessage.tool_calls) {
+        const functionName = toolCall.function.name;
+        const args = JSON.parse(toolCall.function.arguments);
+        
+        let functionResult = '';
+        
+        if (functionName === 'get_stock_info') {
+          const stockData = await getStockData(args.stock_code);
+          functionResult = JSON.stringify(stockData);
+        } else if (functionName === 'check_stock_connect_eligibility') {
+          // 简化版入通资格检查
+          const stockData = await getStockData(args.stock_code);
+          functionResult = JSON.stringify({
+            stock_code: args.stock_code,
+            stock_name: stockData?.name || '未知',
+            eligible: stockData?.marketCap >= 5000000000, // 50亿门槛
+            market_cap: stockData?.marketCap || 0,
+            threshold: 5000000000,
+            note: '港股通纳入标准：恒生综合指数成分股且市值≥50亿港元'
+          });
+        } else if (functionName === 'check_hsi_eligibility') {
+          const stockData = await getStockData(args.stock_code);
+          functionResult = JSON.stringify({
+            stock_code: args.stock_code,
+            stock_name: stockData?.name || '未知',
+            eligible: stockData?.marketCap >= 100000000000, // 1000亿大致门槛
+            market_cap: stockData?.marketCap || 0,
+            threshold: 100000000000,
+            note: '恒生指数纳入标准：市值排名靠前，流动性充足'
+          });
+        }
+        
+        // 添加函数结果
+        messages.push({
+          tool_call_id: toolCall.id,
+          role: "tool",
+          content: functionResult
+        });
+      }
+      
+      // 再次调用AI，让它基于函数结果生成回答
+      const secondResponse = await fetch(AZURE_OPENAI_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'api-key': AZURE_OPENAI_API_KEY,
+        },
+        body: JSON.stringify({
+          messages: messages,
+          temperature: temperature,
+          max_tokens: maxTokens,
+        }),
+      });
+
+      if (!secondResponse.ok) {
+        const errorText = await secondResponse.text();
+        throw new Error(`Azure OpenAI API error: ${secondResponse.status} - ${errorText}`);
+      }
+
+      const secondData = await secondResponse.json();
+      return secondData.choices[0].message.content;
+    }
+
+    // 如果没有函数调用，直接返回内容
+    return assistantMessage.content;
+  } catch (error: any) {
+    console.error('Azure OpenAI API error:', error);
+    throw error;
   }
 }
 
