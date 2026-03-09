@@ -19,6 +19,13 @@ const HK_STOCK_MAP: Record<string, { name: string; nameEn: string; industry: str
   '06618.hk': { name: '京东健康', nameEn: 'JD Health', industry: '互联网医疗' },
   '09618.hk': { name: '京东集团-SW', nameEn: 'JD.com (SW)', industry: '互联网' },
   
+  // 医疗/医药科技
+  '02569.hk': { name: '微创心通医疗', nameEn: 'MicroPort CardioFlow', industry: '医疗器械' },
+  '02252.hk': { name: '微创机器人', nameEn: 'MicroPort MedBot', industry: '医疗器械' },
+  '03033.hk': { name: '药师帮', nameEn: 'YSB Inc', industry: '医药电商' },
+  '02557.hk': { name: '鹰瞳科技', nameEn: 'Airdoc', industry: '医疗健康' },
+  '02280.hk': { name: '中国先锋医药', nameEn: 'China Pioneer Pharma', industry: '医药' },
+  
   // 金融
   '06030.hk': { name: '中信证券', nameEn: 'CITIC Securities', industry: '金融' },
   '02318.hk': { name: '中国平安', nameEn: 'Ping An', industry: '保险' },
@@ -41,22 +48,33 @@ const HK_STOCK_MAP: Record<string, { name: string; nameEn: string; industry: str
   '01885.hk': { name: '康弘药业', nameEn: 'Kanghong Pharma', industry: '医药' },
   '02552.hk': { name: '华润医药', nameEn: 'China Resources Pharma', industry: '医药' },
   '02659.hk': { name: '宝济药业-B', nameEn: 'Baoji Pharma', industry: '生物医药' },
+  '01548.hk': { name: '金斯瑞生物科技', nameEn: 'GenScript', industry: '生物医药' },
+  '02255.hk': { name: '沛嘉医疗', nameEn: 'Peijia Medical', industry: '医疗器械' },
+  '09955.hk': { name: '先声药业', nameEn: 'Simcere Pharmaceutical', industry: '医药' },
+  '06606.hk': { name: '复宏汉霖', nameEn: 'Henlius', industry: '生物医药' },
+  '02181.hk': { name: '康龙化成', nameEn: 'PharmaLon', industry: '医药研发' },
   
   // 消费
   '01928.hk': { name: '金沙中国', nameEn: 'Las Vegas Sands', industry: '博彩旅游' },
   '00027.hk': { name: '银河娱乐', nameEn: 'Galaxy Entertainment', industry: '博彩旅游' },
   '01171.hk': { name: '华润啤酒', nameEn: 'CR Beer', industry: '消费' },
   '00388.hk': { name: '香港交易所', nameEn: 'HKEX', industry: '金融' },
+  '02319.hk': { name: '蒙牛乳业', nameEn: 'Mengniu Dairy', industry: '食品饮料' },
+  '02291.hk': { name: '农夫山泉', nameEn: 'Nongfu Spring', industry: '食品饮料' },
+  '03690.hk': { name: '海底捞', nameEn: 'Haidilao', industry: '餐饮' },
   
   // 地产
   '01109.hk': { name: '华润置地', nameEn: 'CR Land', industry: '房地产' },
   '06808.hk': { name: '中国奥园', nameEn: 'China Aoyuan', industry: '房地产' },
   '02777.hk': { name: '富力地产', nameEn: 'R&F Properties', industry: '房地产' },
+  '00175.hk': { name: '恒生银行', nameEn: 'Hang Seng Bank', industry: '银行' },
   
   // 科技
   '00384.hk': { name: '中国燃气', nameEn: 'China Gas', industry: '公用事业' },
   '02656.hk': { name: '中航资本', nameEn: 'AVIC Capital', industry: '金融' },
   '02020.hk': { name: '安踏体育', nameEn: 'ANTA Sports', industry: '消费' },
+  '02318.hk': { name: '中国平安', nameEn: 'Ping An', industry: '保险' },
+  '00939.hk': { name: '建设银行', nameEn: 'CCB', industry: '银行' },
 };
 
 // 港股股票代码规范化
