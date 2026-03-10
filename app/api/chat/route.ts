@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { NextResponse } from 'next/server';
 import expertsConfig from '../../config/experts.json';
 import stocksConfig from '../../config/hk-stocks.json';
 
