@@ -85,13 +85,26 @@ function normalizeStockCode(code: string): string {
 
 // 提取消息中的股票代码 - 支持各种格式
 function extractStockCodes(message: string): string[] {
-  // 匹配各种格式的港股代码：00700.hk, 00700, 02659.hk, 02569.HK 等
-  // 匹配4-5位数字，可选的.hk后缀（大小写不敏感）
-  const stockCodePattern = /\b(0\d{4,5}(?:\.hk|\.HK)?)\b/gi;
-  const matches = message.match(stockCodePattern) || [];
+  // 匹配各种格式的港股代码：00700.hk, 00700, 02659.hk, 02569.HK, 02659HK 等
+  // 优先匹配5位数代码（港股通常5位数）
+  const patterns = [
+    /\b(0\d{4,5})(?:\.hk|\.HK|hk|HK)?\b/gi,  // 匹配5位数
+    /\b(\d{4})(?:\.hk|\.HK|hk|HK)?\b/gi      // 匹配4位数
+  ];
   
-  // 过滤并标准化 - 移除点号和hk后缀，然后重新添加
-  return matches
+  let allMatches: string[] = [];
+  
+  for (const pattern of patterns) {
+    const matches = message.match(pattern);
+    if (matches) {
+      allMatches = allMatches.concat(matches);
+    }
+  }
+  
+  // 去重并标准化
+  const uniqueMatches = [...new Set(allMatches)];
+  
+  return uniqueMatches
     .map(code => {
       // 移除所有非数字字符
       let cleaned = code.replace(/\D/g, '');
@@ -421,6 +434,13 @@ ${priceInfo}
 
       // 始终返回股票信息（即使AI没有正确使用）
       if (stockDataResults.length > 0) {
+        // 强制在AI回复末尾添加股票信息
+        const stockInfoText = stockDataResults.map((stock: any) => 
+          `\n\n【股票信息】\n代码: ${stock.code}\n公司: ${stock.name} (${stock.nameEn})\n行业: ${stock.industry}`
+        ).join('\n');
+        
+        responseData.response = aiResponse + stockInfoText;
+        
         responseData.detectedStocks = stockDataResults.map((stock: any) => ({
           code: stock.code,
           name: stock.name,
