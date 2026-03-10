@@ -7,6 +7,10 @@ const AZURE_OPENAI_ENDPOINT = process.env.AZURE_OPENAI_ENDPOINT || '';
 const AZURE_OPENAI_API_KEY = process.env.AZURE_OPENAI_API_KEY || '';
 const AZURE_OPENAI_DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o';
 
+// iTick API配置
+const ITICK_API_BASE = 'https://api.itick.org';
+const ITICK_API_KEY = process.env.ITICK_API_KEY || '';
+
 // 腾讯财经API基础URL
 const TENCENT_FINANCE_API = 'https://qt.gtimg.cn/q=';
 
@@ -173,8 +177,81 @@ async function searchStockData(stockCode: string) {
   }
 }
 
-// 从API获取股票数据
+// 从iTick API获取股票数据
+async function getStockDataFromITick(stockCode: string) {
+  const normalizedCode = normalizeStockCode(stockCode);
+  const numericCode = normalizedCode.replace(/\.hk$/i, '').replace(/^0+/, '') || normalizedCode;
+  
+  const url = `${ITICK_API_BASE}/stock/quotes?region=hk&code=${numericCode}`;
+  
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'accept': 'application/json',
+        'token': ITICK_API_KEY,
+      },
+      next: { revalidate: 30 } // 缓存30秒
+    });
+
+    if (!response.ok) {
+      console.error('iTick API error:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    
+    if (data && data.data && data.data.length > 0) {
+      const stock = data.data[0];
+      return {
+        code: normalizedCode.toUpperCase(),
+        name: stock.n || stock.name || normalizedCode,
+        price: parseFloat(stock.p) || 0,
+        change: parseFloat(stock.d) || 0,
+        changePct: parseFloat(stock.dp) || 0,
+        volume: parseInt(stock.v) || 0,
+        amount: parseFloat(stock.a) || 0,
+        marketCap: parseFloat(stock.mv) || 0, // 市值
+        turnover: parseInt(stock.v) || 0,
+        source: 'itick'
+      };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('iTick API error:', error);
+    return null;
+  }
+}
+
+// 从API获取股票数据（优先iTick，备用腾讯）
 async function getStockDataFromAPI(stockCode: string) {
+  // 首先尝试iTick API
+  if (ITICK_API_KEY) {
+    const itickResult = await getStockDataFromITick(stockCode);
+    if (itickResult) {
+      // 合并本地映射的公司名称
+      const normalizedCode = normalizeStockCode(stockCode);
+      let localInfo = null;
+      for (const [key, info] of Object.entries(COMBINED_STOCK_MAP)) {
+        if (key.toLowerCase() === normalizedCode.toLowerCase()) {
+          localInfo = info;
+          break;
+        }
+      }
+      
+      if (localInfo) {
+        return {
+          ...itickResult,
+          name: localInfo.name,
+          nameEn: localInfo.nameEn,
+          industry: localInfo.industry
+        };
+      }
+      return itickResult;
+    }
+  }
+  
+  // iTick失败时使用腾讯API备用方案
   try {
     // 规范化代码（移除.hk后缀用于API查询）
     const codeNum = stockCode.replace(/\.hk$/i, '').replace(/^0+/, '').padStart(5, '0');
@@ -231,7 +308,7 @@ async function getStockDataFromAPI(stockCode: string) {
       changePct: changePct,
       marketCap: marketCap, // 已经是港币
       turnover: turnover,
-      source: 'realtime'
+      source: 'tencent'
     };
   } catch (error) {
     console.error('获取股票数据失败:', error);
