@@ -83,36 +83,21 @@ function normalizeStockCode(code: string): string {
   return normalized;
 }
 
-// 提取消息中的股票代码 - 支持各种格式
+// 提取消息中的股票代码 - 简化版
 function extractStockCodes(message: string): string[] {
-  // 匹配各种格式的港股代码：00700.hk, 00700, 02659.hk, 02569.HK, 02659HK 等
-  // 优先匹配5位数代码（港股通常5位数）
-  const patterns = [
-    /\b(0\d{4,5})(?:\.hk|\.HK|hk|HK)?\b/gi,  // 匹配5位数
-    /\b(\d{4})(?:\.hk|\.HK|hk|HK)?\b/gi      // 匹配4位数
-  ];
-  
-  let allMatches: string[] = [];
-  
-  for (const pattern of patterns) {
-    const matches = message.match(pattern);
-    if (matches) {
-      allMatches = allMatches.concat(matches);
-    }
-  }
+  // 简单直接：匹配5位数字（港股代码通常是5位，以0开头）
+  const pattern = /\b(0\d{4,5})\b/g;
+  const matches = message.match(pattern) || [];
   
   // 去重并标准化
-  const uniqueMatches = [...new Set(allMatches)];
+  const uniqueCodes = [...new Set(matches)];
   
-  return uniqueMatches
+  return uniqueCodes
     .map(code => {
-      // 移除所有非数字字符
-      let cleaned = code.replace(/\D/g, '');
-      // 保持前导零（港股代码需要）
-      cleaned = cleaned.padStart(5, '0').slice(-5);
-      return cleaned + '.hk';  // 统一使用小写
+      const cleaned = code.padStart(5, '0').slice(-5);
+      return cleaned + '.hk';
     })
-    .filter(code => code.length === 6); // 格式如 02569.hk
+    .filter(code => code.length === 6);
 }
 
 // 获取股票数据 - 优先本地映射，确保名称准确
