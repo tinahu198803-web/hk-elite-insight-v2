@@ -339,16 +339,19 @@ export async function POST(request: Request) {
 
     // 预提取股票代码并查询数据（核心修复：先查数据，再问AI）
     const stockCodes = extractStockCodes(message);
+    console.log('提取到的股票代码:', stockCodes, '原始消息:', message);
     let stockDataResults: any[] = [];
     let stockInfoContext = '';
     
     if (stockCodes.length > 0) {
+      console.log('开始查询股票数据, codes:', stockCodes);
       const uniqueCodes = [...new Set(stockCodes)].slice(0, 3);
       
       // 并行查询所有股票数据
       const stockDataPromises = uniqueCodes.map(code => getStockData(code));
       const stockResults = await Promise.all(stockDataPromises);
       
+      console.log('股票查询结果:', stockResults);
       stockDataResults = stockResults.filter(s => s !== null);
       
       // 构建股票信息上下文（强制AI使用）
