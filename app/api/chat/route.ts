@@ -103,11 +103,15 @@ function extractStockCodes(message: string): string[] {
 // 获取股票数据 - 优先本地映射，确保名称准确
 async function getStockData(stockCode: string): Promise<any> {
   const normalizedCode = normalizeStockCode(stockCode);
+  console.log('getStockData called for:', stockCode, 'normalized:', normalizedCode);
+  console.log('COMBINED_STOCK_MAP keys (sample):', Object.keys(COMBINED_STOCK_MAP).slice(0, 10));
+  
   let localInfo = null;
   
   // 1. 首先从本地映射获取公司名称（这是最准确的）
   for (const [key, info] of Object.entries(COMBINED_STOCK_MAP)) {
     if (key.toLowerCase() === normalizedCode.toLowerCase()) {
+      console.log('Found match:', key, info);
       localInfo = { code: key, ...info };
       break;
     }
