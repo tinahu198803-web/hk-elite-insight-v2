@@ -381,8 +381,8 @@ ${priceInfo}
       systemPrompt += stockInfoContext;
     }
     
-    // 添加专家特定的系统提示
-    systemPrompt += `\n\n【专家身份】\n你是 ${expert.name}。${expert.description || ''}\n请用专业的口吻回答用户的问题。`;
+    // 添加专家特定的系统提示 + 防幻觉规则
+    systemPrompt += `\n\n【关键警告 - 必须遵守】\n当用户询问股票代码对应的公司名称时：\n1. 禁止根据记忆猜测！必须使用【股票数据查询结果】中的名称！\n2. 如果没有该股票数据，明确告诉用户"数据库中没有此股票信息"\n3. 严禁编造公司名称！\n\n【专家身份】\n你是 ${expert.name}。${expert.description || ''}\n请用专业的口吻回答用户的问题。`;
 
     // 构建消息列表
     const messages: any[] = [
@@ -400,11 +400,11 @@ ${priceInfo}
     // 添加当前消息
     messages.push({ role: 'user', content: message });
 
-    // 调用Azure OpenAI（带Function Calling）
+    // 调用Azure OpenAI（禁用Function Calling，因为我们已手动查询股票数据）
     try {
       const aiResponse = await callAzureOpenAIWithFunctions(
         messages,
-        stockCodes.length > 0 ? FUNCTIONS : [],
+        [],  // 禁用functions，强制使用系统提示中的数据
         expert.temperature,
         expert.maxTokens
       );
