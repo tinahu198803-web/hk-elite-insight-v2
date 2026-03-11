@@ -185,37 +185,6 @@ async function getStockData(stockCode: string): Promise<any> {
   return null;
 }
 
-// 使用搜索API获取新股信息
-      industry: localInfo ? localInfo.industry : apiResult.industry,
-      price: apiResult.price,
-      change: apiResult.change,
-      changePct: apiResult.changePct,
-      marketCap: apiResult.marketCap,
-      turnover: apiResult.turnover,
-      source: 'realtime'
-    };
-  }
-  
-  // 3. 如果本地有记录但API失败，返回本地数据
-  if (localInfo) {
-    return {
-      code: localInfo.code.toUpperCase(),
-      name: localInfo.name,
-      nameEn: localInfo.nameEn,
-      industry: localInfo.industry,
-      price: 0,
-      change: 0,
-      changePct: 0,
-      marketCap: 0,
-      turnover: 0,
-      source: 'local'
-    };
-  }
-  
-  // 4. 完全查不到
-  return null;
-}
-
 // 直接从本地映射获取股票数据（同步函数，不需要API）
 function getStockDataDirect(stockCode: string): any {
   const normalizedCode = normalizeStockCode(stockCode);
