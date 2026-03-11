@@ -651,20 +651,20 @@ ${priceInfo}
       timestamp: new Date().toISOString()
     };
 
-      // 始终返回股票信息（即使AI没有正确使用）
-      if (stockDataResults.length > 0) {
-        // 检查AI是否给出了错误的回答
-        const aiText = aiResponse || '';
-        const aiSaysNoData = aiText.includes('没有此股票') || 
-          aiText.includes('数据库中没有') ||
-          aiText.includes('无法查询') ||
-          aiText.includes('不存在') ||
-          aiText.includes('无法识别') ||
-          aiText.length < 10; // 或者回复太短
-        
-        let finalResponse: string;
-        
-        if (aiSaysNoData && stockDataResults.length > 0) {
+    // 始终返回股票信息（即使AI没有正确使用）
+    if (stockDataResults.length > 0) {
+      // 检查AI是否给出了错误的回答
+      const aiText = aiResponse || '';
+      const aiSaysNoData = aiText.includes('没有此股票') || 
+        aiText.includes('数据库中没有') ||
+        aiText.includes('无法查询') ||
+        aiText.includes('不存在') ||
+        aiText.includes('无法识别') ||
+        aiText.length < 10;
+      
+      let finalResponse: string;
+      
+      if (aiSaysNoData && stockDataResults.length > 0) {
           // AI回答错误，直接基于股票数据生成正确回复
           finalResponse = stockDataResults.map((stock: any) => {
             const priceText = stock.price > 0 
@@ -698,25 +698,6 @@ ${priceInfo}
         success: true,
         data: responseData
       });
-    } catch (aiError: any) {
-      console.error('AI调用失败:', aiError);
-      
-      // 返回带股票数据的结果
-      return NextResponse.json({
-        success: true,
-        data: {
-          expert: expert.name,
-          response: `抱歉，AI服务暂时不可用。但以下是您查询的股票信息：\n\n${
-            stockDataResults.map(s => `【${s.code}】${s.name} (${s.nameEn})\n行业: ${s.industry}\n当前价: ${s.price > 0 ? s.price + '港元' : '暂无'}\n涨跌: ${s.price > 0 ? (s.change > 0 ? '+' : '') + s.change + '港元 (' + s.changePct + '%)' : '暂无'}\n`).join('\n')
-          }\n\n如需完整分析，请稍后重试。`,
-          timestamp: new Date().toISOString(),
-          detectedStocks: stockDataResults,
-          isDemo: true
-        },
-        message: 'AI服务暂时不可用，已返回基础股票数据'
-      });
-    }
-
   } catch (error: any) {
     console.error('Chat error:', error);
 
