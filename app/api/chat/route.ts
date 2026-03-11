@@ -654,20 +654,33 @@ ${priceInfo}
     messages.push({ role: 'user', content: message });
 
     // 调用Azure OpenAI（禁用Function Calling，因为我们已手动查询股票数据）
+    let aiResponse = '';
     try {
-      const aiResponse = await callAzureOpenAIWithFunctions(
+      aiResponse = await callAzureOpenAIWithFunctions(
         messages,
-        [],  // 禁用functions，强制使用系统提示中的数据
+        [],
         expert.temperature,
         expert.maxTokens
       );
+    } catch (aiError: any) {
+      console.error('AI调用失败:', aiError.message);
+    }
 
-      // 构建返回数据
-      const responseData: any = {
-        expert: expert.name,
-        response: aiResponse,
-        timestamp: new Date().toISOString()
-      };
+    // 如果AI返回为空，使用默认回复
+    if (!aiResponse || aiResponse.trim() === '') {
+      if (stockDataResults.length > 0) {
+        aiResponse = `您好！让我为您整理一下股票信息。`;
+      } else {
+        aiResponse = `您好！我是${expert.name}。请问有什么可以帮您？`;
+      }
+    }
+
+    // 构建返回数据
+    const responseData: any = {
+      expert: expert.name,
+      response: aiResponse,
+      timestamp: new Date().toISOString()
+    };
 
       // 始终返回股票信息（即使AI没有正确使用）
       if (stockDataResults.length > 0) {
