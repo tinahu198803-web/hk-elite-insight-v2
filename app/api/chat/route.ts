@@ -671,12 +671,33 @@ ${priceInfo}
 
       // 始终返回股票信息（即使AI没有正确使用）
       if (stockDataResults.length > 0) {
-        // 强制在AI回复末尾添加股票信息
-        const stockInfoText = stockDataResults.map((stock: any) => 
-          `\n\n【股票信息】\n代码: ${stock.code}\n公司: ${stock.name} (${stock.nameEn})\n行业: ${stock.industry}`
-        ).join('\n');
+        // 检查AI是否给出了错误的回答（如"没有股票信息"）
+        const aiSaysNoData = aiResponse && (
+          aiResponse.includes('没有此股票') || 
+          aiResponse.includes('数据库中没有') ||
+          aiResponse.includes('无法查询') ||
+          aiResponse.includes('不存在')
+        );
         
-        responseData.response = aiResponse + stockInfoText;
+        let finalResponse: string;
+        
+        if (aiSaysNoData && stockDataResults.length > 0) {
+          // AI回答错误，直接基于股票数据生成正确回复
+          finalResponse = stockDataResults.map((stock: any) => {
+            const priceText = stock.price > 0 
+              ? `\n当前价格: ${stock.price}港元\n涨跌: ${stock.change > 0 ? '+' : ''}${stock.change}港元 (${stock.changePct}%)\n流动市值: ${(stock.marketCap / 100000000).toFixed(2)}亿港元`
+              : '\n当前价格: 暂无实时数据';
+            
+            return `【股票信息查询结果】\n\n股票代码: ${stock.code}\n公司名称: ${stock.name}\n英文名称: ${stock.nameEn}\n所属行业: ${stock.industry}${priceText}\n\n如需更详细的分析，请告诉我具体想了解哪方面的信息。`;
+          }).join('\n\n');
+        } else {
+          // AI回答正确，在末尾添加股票信息
+          finalResponse = aiResponse + '\n\n' + stockDataResults.map((stock: any) => 
+            `【股票信息】\n代码: ${stock.code}\n公司: ${stock.name} (${stock.nameEn})\n行业: ${stock.industry}`
+          ).join('\n');
+        }
+        
+        responseData.response = finalResponse;
         
         responseData.detectedStocks = stockDataResults.map((stock: any) => ({
           code: stock.code,
