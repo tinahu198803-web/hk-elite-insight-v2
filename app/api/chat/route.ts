@@ -120,10 +120,6 @@ function extractStockCodes(message: string): string[] {
     })
     .filter(code => code.length === 6);
 }
-      return cleaned + '.hk';
-    })
-    .filter(code => code.length === 6);
-}
 
 // 获取股票数据 - 优先本地映射，确保名称准确
 async function getStockData(stockCode: string): Promise<any> {
