@@ -548,7 +548,7 @@ export async function POST(request: Request) {
     }
     
     console.log('提取到的股票代码:', stockCodes, '原始消息:', message);
-    let stockDataResults: any[] = [];
+    let stockDataResults: any[] = []; // 始终初始化为空数组
     let stockInfoContext = '';
     
     if (stockCodes.length > 0) {
@@ -644,11 +644,12 @@ ${priceInfo}
       }
     }
 
-    // 构建返回数据
+    // 构建返回数据 - 确保detectedStocks始终是数组
     const responseData: any = {
       expert: expert.name,
       response: aiResponse,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      detectedStocks: [] // 初始化为空数组
     };
 
     // 始终返回股票信息（即使AI没有正确使用）

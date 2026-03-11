@@ -202,9 +202,9 @@ ${expertData.features?.map(f => `• ${f}`).join('\n')}
         const aiMessage: Message = {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: result.data.response,
+          content: result.data?.response || '抱歉，未能获取有效回复',
           timestamp: new Date(),
-          detectedStocks: result.data.detectedStocks
+          detectedStocks: result.data?.detectedStocks || []
         };
         setMessages(prev => [...prev, aiMessage]);
       } else {
