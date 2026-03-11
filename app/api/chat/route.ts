@@ -684,13 +684,14 @@ ${priceInfo}
 
       // 始终返回股票信息（即使AI没有正确使用）
       if (stockDataResults.length > 0) {
-        // 检查AI是否给出了错误的回答（如"没有股票信息"）
-        const aiSaysNoData = aiResponse && (
-          aiResponse.includes('没有此股票') || 
-          aiResponse.includes('数据库中没有') ||
-          aiResponse.includes('无法查询') ||
-          aiResponse.includes('不存在')
-        );
+        // 检查AI是否给出了错误的回答
+        const aiText = aiResponse || '';
+        const aiSaysNoData = aiText.includes('没有此股票') || 
+          aiText.includes('数据库中没有') ||
+          aiText.includes('无法查询') ||
+          aiText.includes('不存在') ||
+          aiText.includes('无法识别') ||
+          aiText.length < 10; // 或者回复太短
         
         let finalResponse: string;
         
