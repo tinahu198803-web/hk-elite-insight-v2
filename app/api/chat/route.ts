@@ -87,18 +87,39 @@ function normalizeStockCode(code: string): string {
   return normalized;
 }
 
-// 提取消息中的股票代码 - 简化版
+// 提取消息中的股票代码 - 增强版
 function extractStockCodes(message: string): string[] {
-  // 简单直接：匹配5位数字（港股代码通常是5位，以0开头）
-  const pattern = /\b(0\d{4,5})\b/g;
-  const matches = message.match(pattern) || [];
+  const codes: string[] = [];
+  
+  // 模式1: 5位数字 (如 02659, 00700)
+  const pattern1 = /\b(0\d{4,5})\b/g;
+  let match;
+  while ((match = pattern1.exec(message)) !== null) {
+    codes.push(match[1]);
+  }
+  
+  // 模式2: 已有完整格式 (如 02659.hk, 00700.HK)
+  const pattern2 = /\b(\d{5})\.hk\b/gi;
+  while ((match = pattern2.exec(message)) !== null) {
+    codes.push(match[1]);
+  }
+  
+  // 模式3: 括号中的代码 (如 (02659))
+  const pattern3 = /\((\d{5})\)/g;
+  while ((match = pattern3.exec(message)) !== null) {
+    codes.push(match[1]);
+  }
   
   // 去重并标准化
-  const uniqueCodes = [...new Set(matches)];
+  const uniqueCodes = [...new Set(codes)];
   
   return uniqueCodes
     .map(code => {
       const cleaned = code.padStart(5, '0').slice(-5);
+      return cleaned + '.hk';
+    })
+    .filter(code => code.length === 6);
+}
       return cleaned + '.hk';
     })
     .filter(code => code.length === 6);
@@ -223,31 +244,37 @@ async function getStockDataFromITick(stockCode: string) {
   }
 }
 
-// 从API获取股票数据（优先iTick，备用腾讯）
+// 从API获取股票数据（优先iTick，备用腾讯，始终返回本地数据）
 async function getStockDataFromAPI(stockCode: string) {
-  // 首先尝试iTick API
+  // 首先获取本地映射的公司信息
+  const normalizedCode = normalizeStockCode(stockCode);
+  let localInfo = null;
+  for (const [key, info] of Object.entries(COMBINED_STOCK_MAP)) {
+    if (key.toLowerCase() === normalizedCode.toLowerCase()) {
+      localInfo = { code: key, ...info };
+      break;
+    }
+  }
+  
+  // 尝试iTick API
   if (ITICK_API_KEY) {
     const itickResult = await getStockDataFromITick(stockCode);
     if (itickResult) {
-      // 合并本地映射的公司名称
-      const normalizedCode = normalizeStockCode(stockCode);
-      let localInfo = null;
-      for (const [key, info] of Object.entries(COMBINED_STOCK_MAP)) {
-        if (key.toLowerCase() === normalizedCode.toLowerCase()) {
-          localInfo = info;
-          break;
-        }
-      }
-      
-      if (localInfo) {
-        return {
-          ...itickResult,
-          name: localInfo.name,
-          nameEn: localInfo.nameEn,
-          industry: localInfo.industry
-        };
-      }
-      return itickResult;
+      // 合并本地名称和API数据
+      return {
+        code: itickResult.code,
+        name: localInfo ? localInfo.name : itickResult.name,
+        nameEn: localInfo ? localInfo.nameEn : '',
+        industry: localInfo ? localInfo.industry : '未知',
+        price: itickResult.price,
+        change: itickResult.change,
+        changePct: itickResult.changePct,
+        volume: itickResult.volume,
+        amount: itickResult.amount,
+        marketCap: itickResult.marketCap,
+        turnover: itickResult.turnover,
+        source: 'itick'
+      };
     }
   }
   
@@ -265,6 +292,23 @@ async function getStockDataFromAPI(stockCode: string) {
     });
 
     if (!response.ok) {
+      // API失败但本地有数据
+      if (localInfo) {
+        return {
+          code: localInfo.code.toUpperCase(),
+          name: localInfo.name,
+          nameEn: localInfo.nameEn,
+          industry: localInfo.industry,
+          price: 0,
+          change: 0,
+          changePct: 0,
+          volume: 0,
+          amount: 0,
+          marketCap: 0,
+          turnover: 0,
+          source: 'local'
+        };
+      }
       return null;
     }
 
@@ -272,12 +316,46 @@ async function getStockDataFromAPI(stockCode: string) {
     const match = text.match(/="([^"]+)"/);
     
     if (!match || !match[1]) {
+      // 解析失败但本地有数据
+      if (localInfo) {
+        return {
+          code: localInfo.code.toUpperCase(),
+          name: localInfo.name,
+          nameEn: localInfo.nameEn,
+          industry: localInfo.industry,
+          price: 0,
+          change: 0,
+          changePct: 0,
+          volume: 0,
+          amount: 0,
+          marketCap: 0,
+          turnover: 0,
+          source: 'local'
+        };
+      }
       return null;
     }
 
     const dataParts = match[1].split(',');
     
     if (dataParts.length < 50) {
+      // 数据不完整但本地有数据
+      if (localInfo) {
+        return {
+          code: localInfo.code.toUpperCase(),
+          name: localInfo.name,
+          nameEn: localInfo.nameEn,
+          industry: localInfo.industry,
+          price: 0,
+          change: 0,
+          changePct: 0,
+          volume: 0,
+          amount: 0,
+          marketCap: 0,
+          turnover: 0,
+          source: 'local'
+        };
+      }
       return null;
     }
 
@@ -285,18 +363,10 @@ async function getStockDataFromAPI(stockCode: string) {
     const price = parseFloat(dataParts[1]) || 0;
     const change = parseFloat(dataParts[2]) || 0;
     const changePct = parseFloat(dataParts[3]) || 0;
+    const volume = parseInt(dataParts[6]) || 0; // 成交量
+    const amount = parseFloat(dataParts[37]) || 0; // 成交额
     const marketCap = parseFloat(dataParts[45]) || 0; // 港股市值（单位：港币）
     const turnover = parseFloat(dataParts[38]) || 0; // 成交量
-    
-    // 优先从本地映射获取准确的公司名称
-    const normalizedCode = normalizeStockCode(stockCode);
-    let localInfo = null;
-    for (const [key, info] of Object.entries(COMBINED_STOCK_MAP)) {
-      if (key.toLowerCase() === normalizedCode.toLowerCase()) {
-        localInfo = info;
-        break;
-      }
-    }
 
     return {
       code: codeNum + '.HK',
@@ -306,12 +376,31 @@ async function getStockDataFromAPI(stockCode: string) {
       price: price,
       change: change,
       changePct: changePct,
-      marketCap: marketCap, // 已经是港币
+      volume: volume,
+      amount: amount,
+      marketCap: marketCap,
       turnover: turnover,
       source: 'tencent'
     };
   } catch (error) {
     console.error('获取股票数据失败:', error);
+    // 异常时返回本地数据
+    if (localInfo) {
+      return {
+        code: localInfo.code.toUpperCase(),
+        name: localInfo.name,
+        nameEn: localInfo.nameEn,
+        industry: localInfo.industry,
+        price: 0,
+        change: 0,
+        changePct: 0,
+        volume: 0,
+        amount: 0,
+        marketCap: 0,
+        turnover: 0,
+        source: 'local'
+      };
+    }
     return null;
   }
 }
