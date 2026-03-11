@@ -138,15 +138,54 @@ async function getStockData(stockCode: string): Promise<any> {
     }
   }
   
+  // 如果本地有记录，即使API失败也返回本地数据
+  if (localInfo) {
+    // 尝试获取API数据
+    const apiResult = await getStockDataFromAPI(stockCode).catch(() => null);
+    
+    if (apiResult && apiResult.price > 0) {
+      // API成功，合并数据
+      return {
+        code: apiResult.code || localInfo.code.toUpperCase(),
+        name: localInfo.name,
+        nameEn: localInfo.nameEn,
+        industry: localInfo.industry,
+        price: apiResult.price,
+        change: apiResult.change,
+        changePct: apiResult.changePct,
+        marketCap: apiResult.marketCap,
+        turnover: apiResult.turnover,
+        source: 'realtime'
+      };
+    }
+    
+    // API失败，返回本地数据
+    return {
+      code: localInfo.code.toUpperCase(),
+      name: localInfo.name,
+      nameEn: localInfo.nameEn,
+      industry: localInfo.industry,
+      price: 0,
+      change: 0,
+      changePct: 0,
+      marketCap: 0,
+      turnover: 0,
+      source: 'local'
+    };
+  }
+  
   // 2. 尝试从API获取实时数据
   const apiResult = await getStockDataFromAPI(stockCode);
   
   if (apiResult) {
-    // 如果API成功，合并本地名称和API数据（以本地名称为准）
-    return {
-      code: apiResult.code,
-      name: localInfo ? localInfo.name : apiResult.name, // 优先本地名称
-      nameEn: localInfo ? localInfo.nameEn : apiResult.nameEn,
+    return apiResult;
+  }
+  
+  // 3. 完全查不到
+  return null;
+}
+
+// 使用搜索API获取新股信息
       industry: localInfo ? localInfo.industry : apiResult.industry,
       price: apiResult.price,
       change: apiResult.change,
@@ -174,6 +213,31 @@ async function getStockData(stockCode: string): Promise<any> {
   }
   
   // 4. 完全查不到
+  return null;
+}
+
+// 直接从本地映射获取股票数据（同步函数，不需要API）
+function getStockDataDirect(stockCode: string): any {
+  const normalizedCode = normalizeStockCode(stockCode);
+  console.log('getStockDataDirect called for:', stockCode, 'normalized:', normalizedCode);
+  
+  for (const [key, info] of Object.entries(COMBINED_STOCK_MAP)) {
+    if (key.toLowerCase() === normalizedCode.toLowerCase()) {
+      console.log('Direct match found:', key, info);
+      return {
+        code: key.toUpperCase(),
+        name: info.name,
+        nameEn: info.nameEn,
+        industry: info.industry,
+        price: 0,
+        change: 0,
+        changePct: 0,
+        marketCap: 0,
+        turnover: 0,
+        source: 'local'
+      };
+    }
+  }
   return null;
 }
 
@@ -502,7 +566,18 @@ export async function POST(request: Request) {
     }
 
     // 预提取股票代码并查询数据（核心修复：先查数据，再问AI）
-    const stockCodes = extractStockCodes(message);
+    let stockCodes = extractStockCodes(message);
+    
+    // 备用方案：如果正则没匹配到，尝试更简单的检测
+    if (stockCodes.length === 0) {
+      // 直接搜索消息中的5位数字（港股代码格式）
+      const simpleMatch = message.match(/\b(\d{5})\b/);
+      if (simpleMatch) {
+        stockCodes = [simpleMatch[1] + '.hk'];
+        console.log('备用提取到股票代码:', stockCodes);
+      }
+    }
+    
     console.log('提取到的股票代码:', stockCodes, '原始消息:', message);
     let stockDataResults: any[] = [];
     let stockInfoContext = '';
@@ -517,6 +592,17 @@ export async function POST(request: Request) {
       
       console.log('股票查询结果:', stockResults);
       stockDataResults = stockResults.filter(s => s !== null);
+      
+      // 如果过滤后为空，尝试直接返回本地映射（绕过API）
+      if (stockDataResults.length === 0 && uniqueCodes.length > 0) {
+        console.log('API查询失败，尝试直接读取本地映射');
+        for (const code of uniqueCodes) {
+          const directResult = getStockDataDirect(code);
+          if (directResult) {
+            stockDataResults.push(directResult);
+          }
+        }
+      }
       
       // 构建股票信息上下文（强制AI使用）
       if (stockDataResults.length > 0) {
