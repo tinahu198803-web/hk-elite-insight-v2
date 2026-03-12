@@ -14,6 +14,9 @@ const ITICK_API_KEY = process.env.ITICK_API_KEY || '';
 // 腾讯财经API基础URL
 const TENCENT_FINANCE_API = 'https://qt.gtimg.cn/q=';
 
+// Yahoo Finance API (备用方案，无需API密钥)
+const YAHOO_FINANCE_API = 'https://query1.finance.yahoo.com/v8/finance/chart/';
+
 // 从外部JSON加载港股股票映射表
 const HK_STOCK_MAP: Record<string, { name: string; nameEn: string; industry: string; listedDate?: string }> = 
   stocksConfig.stocks || {};
@@ -273,7 +276,63 @@ async function getStockDataFromITick(stockCode: string) {
   }
 }
 
-// 从API获取股票数据（优先iTick，备用腾讯，始终返回本地数据）
+// 从Yahoo Finance获取股票数据 (备用方案)
+async function getStockDataFromYahoo(stockCode: string) {
+  const normalizedCode = normalizeStockCode(stockCode);
+  // 港股代码转换为Yahoo Finance格式: 02659.HK -> 02659.HK
+  const symbol = normalizedCode.replace('.hk', '.HK');
+  
+  try {
+    const url = `${YAHOO_FINANCE_API}${symbol}?interval=1d&range=1d`;
+    
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      },
+      next: { revalidate: 60 }
+    });
+
+    if (!response.ok) {
+      console.error('Yahoo Finance API error:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    
+    if (data && data.chart && data.chart.result && data.chart.result[0]) {
+      const result = data.chart.result[0];
+      const meta = result.meta;
+      const quote = result.indicators?.quote?.[0];
+      
+      if (meta && quote) {
+        const currentPrice = meta.regularMarketPrice || 0;
+        const previousClose = meta.previousClose || meta.chartPreviousClose || 0;
+        const change = currentPrice - previousClose;
+        const changePct = previousClose > 0 ? (change / previousClose) * 100 : 0;
+        
+        return {
+          code: normalizedCode.toUpperCase(),
+          name: meta.shortName || meta.symbol || normalizedCode,
+          price: currentPrice,
+          change: change,
+          changePct: parseFloat(changePct.toFixed(2)),
+          volume: meta.regularMarketVolume || 0,
+          amount: 0,
+          marketCap: meta.marketCap || 0,
+          turnover: meta.regularMarketVolume || 0,
+          source: 'yahoo'
+        };
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Yahoo Finance API error:', error);
+    return null;
+  }
+}
+
+// 从API获取股票数据（优先iTick，备用Yahoo/腾讯，始终返回本地数据）
 async function getStockDataFromAPI(stockCode: string) {
   // 首先获取本地映射的公司信息
   const normalizedCode = normalizeStockCode(stockCode);
@@ -285,11 +344,12 @@ async function getStockDataFromAPI(stockCode: string) {
     }
   }
   
-  // 尝试iTick API
-  if (ITICK_API_KEY) {
+  // 尝试iTick API (如果有密钥)
+  if (ITICK_API_KEY && ITICK_API_KEY.length > 0) {
+    console.log('尝试使用iTick API...');
     const itickResult = await getStockDataFromITick(stockCode);
-    if (itickResult) {
-      // 合并本地名称和API数据
+    if (itickResult && itickResult.price > 0) {
+      console.log('iTick API成功获取数据');
       return {
         code: itickResult.code,
         name: localInfo ? localInfo.name : itickResult.name,
@@ -307,7 +367,28 @@ async function getStockDataFromAPI(stockCode: string) {
     }
   }
   
-  // iTick失败时使用腾讯API备用方案
+  // iTick失败或无密钥时，使用Yahoo Finance备用方案
+  console.log('尝试使用Yahoo Finance API...');
+  const yahooResult = await getStockDataFromYahoo(stockCode);
+  if (yahooResult && yahooResult.price > 0) {
+    console.log('Yahoo Finance API成功获取数据');
+    return {
+      code: yahooResult.code,
+      name: localInfo ? localInfo.name : yahooResult.name,
+      nameEn: localInfo ? localInfo.nameEn : '',
+      industry: localInfo ? localInfo.industry : '未知',
+      price: yahooResult.price,
+      change: yahooResult.change,
+      changePct: yahooResult.changePct,
+      volume: yahooResult.volume,
+      amount: yahooResult.amount,
+      marketCap: yahooResult.marketCap,
+      turnover: yahooResult.turnover,
+      source: 'yahoo'
+    };
+  }
+  
+  // Yahoo失败时使用腾讯API备用方案
   try {
     // 规范化代码（移除.hk后缀用于API查询）
     const codeNum = stockCode.replace(/\.hk$/i, '').replace(/^0+/, '').padStart(5, '0');
