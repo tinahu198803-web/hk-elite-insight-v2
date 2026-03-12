@@ -73,6 +73,18 @@ const FALLBACK_STOCK_MAP: Record<string, { name: string; nameEn: string; industr
   '02569.hk': { name: '再鼎医药', nameEn: 'Zai Lab', industry: '生物医药' },
   '09939.hk': { name: '康方生物', nameEn: 'Akeso', industry: '生物医药' },
   '01531.hk': { name: '康希诺生物', nameEn: 'CanSino Biologics', industry: '生物医药' },
+  // 2024-2025年新上市热门股票
+  '02588.hk': { name: '老铺黄金', nameEn: 'Laopu Gold', industry: '消费' },
+  '09668.hk': { name: '周杰伦概念股', nameEn: 'Star Legend', industry: '消费' },
+  '03883.hk': { name: '中国游乐设施', nameEn: 'China Amusement Parks', industry: '消费' },
+  '06808.hk': { name: '京东物流', nameEn: 'JD Logistics', industry: '物流' },
+  '06699.hk': { name: '泡泡玛特', nameEn: 'Pop Mart', industry: '消费' },
+  '09969.hk': { name: '诺诚健华', nameEn: 'Innovent Biologics', industry: '生物医药' },
+  '09922.hk': { name: '嘉和生物', nameEn: 'Genor Biopharma', industry: '生物医药' },
+  '09955.hk': { name: '康诺亚生物', nameEn: 'Keymed Biosciences', industry: '生物医药' },
+  '06613.hk': { name: '医渡科技', nameEn: 'Yidu Tech', industry: '医疗科技' },
+  '02586.hk': { name: '上海微创软件', nameEn: 'Shanghai Wicresoft', industry: '软件' },
+  '03678.hk': { name: '丙晟科技', nameEn: 'Binglang Technology', industry: '科技' },
 };
 
 // 合并两个数据源
@@ -94,7 +106,7 @@ function normalizeStockCode(code: string): string {
 function extractStockCodes(message: string): string[] {
   const codes: string[] = [];
   
-  // 模式1: 5位数字 (如 02659, 00700)
+  // 模式1: 5位数字 (如 02659, 00700) - 带边界
   const pattern1 = /\b(0\d{4,5})\b/g;
   let match;
   while ((match = pattern1.exec(message)) !== null) {
@@ -110,6 +122,20 @@ function extractStockCodes(message: string): string[] {
   // 模式3: 括号中的代码 (如 (02659))
   const pattern3 = /\((\d{5})\)/g;
   while ((match = pattern3.exec(message)) !== null) {
+    codes.push(match[1]);
+  }
+  
+  // 模式4: 中文/英文关键词后的代码 (如 "股票02659" "代码02659" "帮我查02659")
+  const pattern4 = /[股票代码号查询帮看看查下].*?(\d{5})/g;
+  while ((match = pattern4.exec(message)) !== null) {
+    if (match[1].startsWith('0')) {
+      codes.push(match[1]);
+    }
+  }
+  
+  // 模式5: 纯5位数字（不以0开头但可能是港股，如 3888.hk）
+  const pattern5 = /(?<![0-9])([1-9]\d{4})(?![0-9])/g;
+  while ((match = pattern5.exec(message)) !== null) {
     codes.push(match[1]);
   }
   
