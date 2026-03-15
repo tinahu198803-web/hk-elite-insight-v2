@@ -1,98 +1,21 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-// GitHub Gist配置 - 用于持久化存储用户问题
-// 请在环境变量中设置: GITHUB_TOKEN (需要gist权限)
-// 或者使用免费的JSONBin.io / JSONPlaceholder
-const GITHUB_API = 'https://api.github.com';
-const GIST_ID = process.env.QUESTIONS_GIST_ID || '';
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
-
-// 使用简单的内存缓存（Vercel Serverless会冷启动，但同一实例内可缓存）
-let cachedData: any = null;
-let lastFetch = 0;
-const CACHE_TTL = 60000; // 1分钟缓存
+// Supabase配置
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://atwlxpljfidlaaufeach.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF0d2x4cGxqZmlkbGFhdWZlYWNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1NTgzODIsImV4cCI6MjA4OTEzNDM4Mn0.o7q4YR8W67I__eDbTIu-OIDn18PqTgez3S1fMF7dFyo';
 
 interface Question {
-  id: string;
-  expertId: string;
-  expertName: string;
+  id?: string;
+  expert_id: string;
+  expert_name: string;
+  company_name: string;      // 公司名称
+  project_content: string;  // 项目内容
   question: string;
   answer: string;
-  timestamp: string;
-  date: string;
-  week: string;
-  month: string;
-  userId?: string;
-  userEmail?: string;
-  userName?: string;
-}
-
-// 从Gist获取数据
-async function fetchFromGist(): Promise<Question[]> {
-  if (!GITHUB_TOKEN || !GIST_ID) {
-    console.log('未配置GitHub Gist，使用内存存储');
-    return cachedData || [];
-  }
-
-  try {
-    const response = await fetch(`${GITHUB_API}/gists/${GIST_ID}`, {
-      headers: {
-        'Authorization': `token ${GITHUB_TOKEN}`,
-        'Accept': 'application/vnd.github.v3+json',
-      },
-    });
-
-    if (!response.ok) {
-      console.error('Gist获取失败:', response.status);
-      return cachedData || [];
-    }
-
-    const data = await response.json();
-    const content = data.files['user-questions.json']?.content;
-    
-    if (content) {
-      cachedData = JSON.parse(content);
-      lastFetch = Date.now();
-      return cachedData;
-    }
-  } catch (error) {
-    console.error('获取Gist数据失败:', error);
-  }
-
-  return cachedData || [];
-}
-
-// 保存到Gist
-async function saveToGist(questions: Question[]): Promise<boolean> {
-  if (!GITHUB_TOKEN || !GIST_ID) {
-    console.log('未配置GitHub Gist，仅保存在内存');
-    cachedData = questions;
-    return true;
-  }
-
-  try {
-    const response = await fetch(`${GITHUB_API}/gists/${GIST_ID}`, {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `token ${GITHUB_TOKEN}`,
-        'Accept': 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        description: '用户咨询问题数据',
-        files: {
-          'user-questions.json': {
-            content: JSON.stringify(questions, null, 2),
-          },
-        },
-      }),
-    });
-
-    return response.ok;
-  } catch (error) {
-    console.error('保存到Gist失败:', error);
-    return false;
-  }
+  created_at?: string;
+  date?: string;
+  week?: string;
+  month?: string;
 }
 
 // 获取本周编号
@@ -104,41 +27,90 @@ function getWeekNumber(date: Date): string {
   return `${d.getUTCFullYear()}-W${String(Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)).padStart(2, '0')}`;
 }
 
+// Supabase API调用
+async function supabaseRequest(endpoint: string, method: string = 'GET', body?: any) {
+  const options: RequestInit = {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+    },
+  };
+  
+  if (body) {
+    options.body = JSON.stringify(body);
+  }
+  
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/${endpoint}`, options);
+  return response;
+}
+
 // GET: 获取问题列表和统计
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const startDate = searchParams.get('startDate') || '';
     const expertId = searchParams.get('expertId') || '';
+    const companyName = searchParams.get('companyName') || '';
     const limit = parseInt(searchParams.get('limit') || '100');
 
-    // 获取所有问题
-    let questions = await fetchFromGist();
+    // 构建查询
+    let query = 'questions?order=created_at.desc';
+    if (limit) query += `&limit=${limit}`;
+    
+    const response = await supabaseRequest(query);
+    let questions: Question[] = await response.json();
 
     // 过滤
     if (startDate) {
       questions = questions.filter(q => q.date >= startDate);
     }
     if (expertId) {
-      questions = questions.filter(q => q.expertId === expertId);
+      questions = questions.filter(q => q.expert_id === expertId);
     }
-
-    // 限制数量
-    questions = questions.slice(-limit);
+    if (companyName) {
+      questions = questions.filter(q => q.company_name?.includes(companyName));
+    }
 
     // 统计
     const stats = {
       total: questions.length,
       byExpert: {} as Record<string, number>,
+      byCompany: {} as Record<string, number>,
+      byProject: {} as Record<string, number>,
       byWeek: {} as Record<string, number>,
       byDate: {} as Record<string, number>,
+      topCompanies: [] as { name: string; count: number }[],
+      topProjects: [] as { name: string; count: number }[],
     };
 
     questions.forEach(q => {
-      stats.byExpert[q.expertId] = (stats.byExpert[q.expertId] || 0) + 1;
-      stats.byWeek[q.week] = (stats.byWeek[q.week] || 0) + 1;
-      stats.byDate[q.date] = (stats.byDate[q.date] || 0) + 1;
+      stats.byExpert[q.expert_id] = (stats.byExpert[q.expert_id] || 0) + 1;
+      stats.byWeek[q.week || ''] = (stats.byWeek[q.week || ''] || 0) + 1;
+      stats.byDate[q.date || ''] = (stats.byDate[q.date || ''] || 0) + 1;
+      
+      // 统计公司
+      if (q.company_name) {
+        stats.byCompany[q.company_name] = (stats.byCompany[q.company_name] || 0) + 1;
+      }
+      // 统计项目
+      if (q.project_content) {
+        stats.byProject[q.project_content] = (stats.byProject[q.project_content] || 0) + 1;
+      }
     });
+
+    // 获取Top公司
+    stats.topCompanies = Object.entries(stats.byCompany)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 10)
+      .map(([name, count]) => ({ name, count }));
+
+    // 获取Top项目
+    stats.topProjects = Object.entries(stats.byProject)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 10)
+      .map(([name, count]) => ({ name, count }));
 
     return NextResponse.json({
       success: true,
@@ -155,10 +127,21 @@ export async function GET(request: Request) {
 }
 
 // POST: 记录新问题
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { expertId, expertName, question, answer, userId, userEmail, userName, sessionId } = body;
+    const { 
+      expertId, 
+      expertName, 
+      companyName,    // 公司名称
+      projectContent, // 项目内容
+      question, 
+      answer, 
+      userId, 
+      userEmail, 
+      userName, 
+      sessionId 
+    } = body;
 
     if (!expertId || !question) {
       return NextResponse.json({
@@ -167,35 +150,38 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    // 获取现有问题
-    const questions = await fetchFromGist();
-
-    // 添加新问题
-    const newQuestion: Question = {
-      id: `q_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      expertId,
-      expertName: expertName || '',
+    const now = new Date();
+    const newQuestion = {
+      expert_id: expertId,
+      expert_name: expertName || '',
+      company_name: companyName || '',      // 公司名称
+      project_content: projectContent || '', // 项目内容
       question: question.substring(0, 2000),
       answer: answer ? answer.substring(0, 5000) : '',
-      timestamp: new Date().toISOString(),
-      date: new Date().toISOString().split('T')[0],
-      week: getWeekNumber(new Date()),
-      month: new Date().toISOString().slice(0, 7),
+      user_id: userId || null,
+      user_email: userEmail || null,
+      user_name: userName || null,
+      session_id: sessionId || null,
+      created_at: now.toISOString(),
+      date: now.toISOString().split('T')[0],
+      week: getWeekNumber(now),
+      month: now.toISOString().slice(0, 7),
     };
 
-    if (userId) newQuestion.userId = userId;
-    if (userEmail) newQuestion.userEmail = userEmail;
-    if (userName) newQuestion.userName = userName;
-    if (sessionId) (newQuestion as any).sessionId = sessionId;
-
-    questions.push(newQuestion);
-
-    // 保存
-    await saveToGist(questions);
+    const response = await supabaseRequest('questions', 'POST', newQuestion);
+    
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('Supabase保存失败:', error);
+      return NextResponse.json({
+        success: false,
+        error: '保存失败',
+      }, { status: 500 });
+    }
 
     return NextResponse.json({
       success: true,
-      id: newQuestion.id,
+      id: `q_${Date.now()}`,
     });
   } catch (error: any) {
     console.error('记录问题失败:', error);

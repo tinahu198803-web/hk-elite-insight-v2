@@ -3,27 +3,34 @@
 import { useState, useEffect } from 'react';
 import { 
   BarChart3, TrendingUp, Users, MessageCircle, 
-  Calendar, Download, RefreshCw, ChevronLeft,
-  PieChart, Activity, ArrowUp, ArrowDown
+  Calendar, RefreshCw, ChevronLeft, Building2, FolderKanban,
+  PieChart, Activity, ArrowUp, ArrowDown, Search, Filter
 } from 'lucide-react';
 
 interface QuestionStats {
   total: number;
   byExpert: Record<string, number>;
+  byCompany: Record<string, number>;
+  byProject: Record<string, number>;
   byWeek: Record<string, number>;
   byDate: Record<string, number>;
+  topCompanies: { name: string; count: number }[];
+  topProjects: { name: string; count: number }[];
 }
 
 interface Question {
   id: string;
-  expertId: string;
-  expertName: string;
+  expert_id: string;
+  expert_name: string;
+  company_name: string;
+  project_content: string;
   question: string;
   answer: string;
-  timestamp: string;
+  created_at: string;
   date: string;
   week: string;
-  userId: string;
+  month: string;
+  user_name?: string;
 }
 
 const expertNames: Record<string, string> = {
@@ -51,6 +58,8 @@ export default function QuestionsAnalyticsPage() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'all'>('week');
+  const [searchCompany, setSearchCompany] = useState('');
+  const [selectedExpert, setSelectedExpert] = useState('');
 
   // 加载数据
   const loadData = async () => {
@@ -70,6 +79,7 @@ export default function QuestionsAnalyticsPage() {
 
       const params = new URLSearchParams();
       if (startDate) params.append('startDate', startDate);
+      if (selectedExpert) params.append('expertId', selectedExpert);
       params.append('limit', '100');
 
       const response = await fetch(`/api/user-questions?${params}`);
@@ -87,9 +97,14 @@ export default function QuestionsAnalyticsPage() {
 
   useEffect(() => {
     loadData();
-  }, [timeRange]);
+  }, [timeRange, selectedExpert]);
 
-  // 获取热门问题（按专家）
+  // 筛选公司
+  const filteredQuestions = searchCompany 
+    ? questions.filter(q => q.company_name?.toLowerCase().includes(searchCompany.toLowerCase()))
+    : questions;
+
+  // 获取热门专家
   const getTopExperts = () => {
     if (!stats?.byExpert) return [];
     return Object.entries(stats.byExpert)
@@ -102,7 +117,7 @@ export default function QuestionsAnalyticsPage() {
       }));
   };
 
-  // 获取最近趋势
+  // 获取趋势
   const getTrend = () => {
     if (!stats?.byDate) return { trend: 0, data: [] };
     
@@ -167,6 +182,34 @@ export default function QuestionsAnalyticsPage() {
           </div>
         ) : (
           <>
+            {/* 搜索筛选 */}
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20 mb-6">
+              <div className="flex flex-wrap gap-4">
+                <div className="flex-1 min-w-[200px]">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input
+                      type="text"
+                      placeholder="搜索公司名称..."
+                      value={searchCompany}
+                      onChange={(e) => setSearchCompany(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                <select
+                  value={selectedExpert}
+                  onChange={(e) => setSelectedExpert(e.target.value)}
+                  className="bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white focus:outline-none"
+                >
+                  <option value="">全部专家</option>
+                  {Object.entries(expertNames).map(([id, name]) => (
+                    <option key={id} value={id}>{name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
             {/* 统计卡片 */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
               {/* 总咨询量 */}
@@ -218,25 +261,72 @@ export default function QuestionsAnalyticsPage() {
                 </div>
               </div>
 
-              {/* 活跃专家 */}
+              {/* 咨询公司数 */}
               <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-gray-400 text-sm">活跃专家</p>
+                    <p className="text-gray-400 text-sm">咨询公司数</p>
                     <p className="text-3xl font-bold text-white mt-1">
-                      {Object.keys(stats?.byExpert || {}).length}
+                      {Object.keys(stats?.byCompany || {}).length}
                     </p>
                   </div>
                   <div className="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center">
-                    <Users className="text-purple-400" size={24} />
+                    <Building2 className="text-purple-400" size={24} />
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* 专家咨询分布 */}
+            {/* 公司和项目分析 */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-              {/* 饼图 - 专家分布 */}
+              {/* Top公司 */}
+              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+                <h3 className="text-white font-bold mb-4 flex items-center">
+                  <Building2 className="mr-2" size={20} />
+                  热门咨询公司 Top 10
+                </h3>
+                <div className="space-y-3 max-h-80 overflow-y-auto">
+                  {(stats?.topCompanies || []).map((company, index) => (
+                    <div key={company.name} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                      <div className="flex items-center">
+                        <span className="text-gray-500 mr-3">{index + 1}</span>
+                        <span className="text-white">{company.name || '未填写'}</span>
+                      </div>
+                      <span className="text-blue-400 font-bold">{company.count}</span>
+                    </div>
+                  ))}
+                  {(!stats?.topCompanies || stats.topCompanies.length === 0) && (
+                    <p className="text-gray-500 text-center py-8">暂无数据</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Top项目 */}
+              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+                <h3 className="text-white font-bold mb-4 flex items-center">
+                  <FolderKanban className="mr-2" size={20} />
+                  热门项目 Top 10
+                </h3>
+                <div className="space-y-3 max-h-80 overflow-y-auto">
+                  {(stats?.topProjects || []).map((project, index) => (
+                    <div key={project.name} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                      <div className="flex items-center">
+                        <span className="text-gray-500 mr-3">{index + 1}</span>
+                        <span className="text-white">{project.name || '未填写'}</span>
+                      </div>
+                      <span className="text-green-400 font-bold">{project.count}</span>
+                    </div>
+                  ))}
+                  {(!stats?.topProjects || stats.topProjects.length === 0) && (
+                    <p className="text-gray-500 text-center py-8">暂无数据</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* 专家分布和趋势 */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              {/* 专家分布 */}
               <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
                 <h3 className="text-white font-bold mb-4 flex items-center">
                   <PieChart className="mr-2" size={20} />
@@ -259,7 +349,7 @@ export default function QuestionsAnalyticsPage() {
                 </div>
               </div>
 
-              {/* 条形图 - 按日期 */}
+              {/* 日趋势 */}
               <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
                 <h3 className="text-white font-bold mb-4 flex items-center">
                   <TrendingUp className="mr-2" size={20} />
@@ -296,30 +386,42 @@ export default function QuestionsAnalyticsPage() {
             <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
               <h3 className="text-white font-bold mb-4 flex items-center">
                 <MessageCircle className="mr-2" size={20} />
-                最近咨询
+                最近咨询 ({filteredQuestions.length}条)
               </h3>
               <div className="space-y-4 max-h-96 overflow-y-auto">
-                {questions.slice(0, 20).map((q) => (
+                {filteredQuestions.slice(0, 20).map((q) => (
                   <div 
                     key={q.id} 
                     className="bg-white/5 rounded-xl p-4 border border-white/10"
                   >
                     <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center">
-                        <span className={`px-2 py-1 rounded text-xs text-white ${expertColors[q.expertId] || 'bg-gray-500'}`}>
-                          {expertNames[q.expertId] || q.expertId}
+                      <div className="flex items-center flex-wrap gap-2">
+                        <span className={`px-2 py-1 rounded text-xs text-white ${expertColors[q.expert_id] || 'bg-gray-500'}`}>
+                          {expertNames[q.expert_id] || q.expert_id}
                         </span>
-                        <span className="text-gray-500 text-xs ml-3">
-                          {q.date} {q.timestamp.split('T')[1]?.slice(0, 8)}
-                        </span>
+                        {q.company_name && (
+                          <span className="px-2 py-1 rounded text-xs bg-purple-500/20 text-purple-300 flex items-center">
+                            <Building2 size={12} className="mr-1" />
+                            {q.company_name}
+                          </span>
+                        )}
+                        {q.project_content && (
+                          <span className="px-2 py-1 rounded text-xs bg-green-500/20 text-green-300 flex items-center">
+                            <FolderKanban size={12} className="mr-1" />
+                            {q.project_content}
+                          </span>
+                        )}
                       </div>
+                      <span className="text-gray-500 text-xs">
+                        {q.date} {q.created_at?.split('T')[1]?.slice(0, 8)}
+                      </span>
                     </div>
                     <p className="text-gray-300 text-sm line-clamp-2">
                       {q.question}
                     </p>
                   </div>
                 ))}
-                {questions.length === 0 && (
+                {filteredQuestions.length === 0 && (
                   <p className="text-gray-500 text-center py-8">暂无咨询记录</p>
                 )}
               </div>

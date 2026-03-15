@@ -10,6 +10,8 @@ function recordUserQuestion(data: {
   userName?: string;
   expertId: string;
   expertName: string;
+  companyName?: string;
+  projectContent?: string;
   question: string;
   answer: string;
   sessionId?: string;
@@ -19,7 +21,15 @@ function recordUserQuestion(data: {
     fetch(`${process.env.NEXT_PUBLIC_APP_URL || ''}/api/user-questions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
+      body: JSON.stringify({
+        expertId: data.expertId,
+        expertName: data.expertName,
+        companyName: data.companyName || '',
+        projectContent: data.projectContent || '',
+        question: data.question,
+        answer: data.answer,
+        sessionId: data.sessionId || ''
+      })
     }).catch(err => console.error('记录问题失败:', err));
   } catch (error) {
     console.error('记录问题失败:', error);
