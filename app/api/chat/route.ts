@@ -69,6 +69,7 @@ const HK_STOCK_MAP: Record<string, StockInfo> = stocksData.stocks || {};
 
 // 备用股票映射 - 确保基本股票能识别
 const FALLBACK_STOCK_MAP: Record<string, StockInfo> = {
+  '00100.hk': { name: '电视广播', nameEn: 'TVB', industry: '传媒' },
   '00700.hk': { name: '腾讯控股', nameEn: 'Tencent Holdings', industry: '互联网' },
   '09988.hk': { name: '阿里巴巴-SW', nameEn: 'Alibaba Group', industry: '互联网' },
   '03690.hk': { name: '美团-W', nameEn: 'Meituan', industry: '互联网' },
@@ -448,8 +449,13 @@ async function getStockDataFromAPI(stockCode: string) {
   }
   
   // 直接使用Yahoo Finance作为主要数据源（免费，无需API密钥）
+  console.log('=== 股票数据查询 ===');
+  console.log('股票代码:', stockCode);
   console.log('尝试使用Yahoo Finance API...');
+  
   const yahooResult = await getStockDataFromYahoo(stockCode);
+  console.log('Yahoo结果:', yahooResult);
+  
   if (yahooResult && yahooResult.price > 0) {
     console.log('Yahoo Finance API成功获取数据');
     return {
@@ -467,6 +473,8 @@ async function getStockDataFromAPI(stockCode: string) {
       source: 'yahoo'
     };
   }
+  
+  console.log('Yahoo失败，尝试腾讯API...');
   
   // Yahoo失败时使用腾讯API备用方案
   try {
