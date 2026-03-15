@@ -4,6 +4,26 @@
   "dataSource": "恒生指数公司官网",
   "notes": "以下为已纳入港股通的股票，数据仅供参考，请以港交所官网为准",
   "stocks": {
+    "00100.hk": {
+      "name": "MiniMax-WP",
+      "nameEn": "MiniMax",
+      "industry": "人工智能",
+      "stockConnectStatus": "未入通",
+      "connectType": "",
+      "hsciType": "",
+      "inclusionDate": "",
+      "notes": "2025年新上市，暂未纳入港股通"
+    },
+    "02575.hk": {
+      "name": "轩竹生物",
+      "nameEn": "Xuanzhu Biotech",
+      "industry": "生物医药",
+      "stockConnectStatus": "已入通",
+      "connectType": "南向",
+      "hsciType": "小型股",
+      "inclusionDate": "2025-03-09",
+      "notes": "2025年3月9日上市，3月9日纳入恒生综合指数和港股通"
+    },
     "02659.hk": {
       "name": "宝济药业-B",
       "nameEn": "Baoji Pharma",

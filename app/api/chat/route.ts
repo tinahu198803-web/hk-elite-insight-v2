@@ -69,7 +69,8 @@ const HK_STOCK_MAP: Record<string, StockInfo> = stocksData.stocks || {};
 
 // 备用股票映射 - 确保基本股票能识别
 const FALLBACK_STOCK_MAP: Record<string, StockInfo> = {
-  '00100.hk': { name: '电视广播', nameEn: 'TVB', industry: '传媒' },
+  '00100.hk': { name: 'MiniMax-WP', nameEn: 'MiniMax', industry: '人工智能' },
+  '02575.hk': { name: '轩竹生物', nameEn: 'Xuanzhu Biotech', industry: '生物医药' },
   '00700.hk': { name: '腾讯控股', nameEn: 'Tencent Holdings', industry: '互联网' },
   '09988.hk': { name: '阿里巴巴-SW', nameEn: 'Alibaba Group', industry: '互联网' },
   '03690.hk': { name: '美团-W', nameEn: 'Meituan', industry: '互联网' },
