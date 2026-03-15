@@ -17,6 +17,9 @@ const TENCENT_FINANCE_API = 'https://qt.gtimg.cn/q=';
 // Yahoo Finance API (备用方案，无需API密钥)
 const YAHOO_FINANCE_API = 'https://query1.finance.yahoo.com/v8/finance/chart/';
 
+// 新浪财经API (免费备用方案)
+const SINA_FINANCE_API = 'https://hq.sinajs.cn/list=hk';
+
 // 从外部JSON加载港股股票映射表
 const HK_STOCK_MAP: Record<string, { name: string; nameEn: string; industry: string; listedDate?: string }> = 
   stocksConfig.stocks || {};
@@ -358,6 +361,73 @@ async function getStockDataFromYahoo(stockCode: string) {
   }
 }
 
+// 从新浪财经API获取股票数据 (免费备用方案)
+async function getStockDataFromSina(stockCode: string) {
+  const normalizedCode = normalizeStockCode(stockCode);
+  // 港股代码: 5位数字，如 00700 ->hk00700
+  const codeNum = normalizedCode.replace('.hk', '');
+  const sinaCode = `hk${codeNum}`;
+  
+  try {
+    const url = `${SINA_FINANCE_API}${sinaCode}`;
+    
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Referer': 'https://finance.sina.com.cn',
+      },
+      next: { revalidate: 30 }
+    });
+
+    if (!response.ok) {
+      console.error('Sina Finance API error:', response.status);
+      return null;
+    }
+
+    const text = await response.text();
+    
+    // 解析返回数据: var hq00700="腾讯控股,407.800,408.200,406.000,408.200,405.600,405.800,405.600,5678237,2310983680.00,0,0,407.000,408.200,5200.00,407.000,0,0,0,0,0,0,0,0,0,0,0,0,0,0";
+    const match = text.match(/="([^"]+)"/);
+    
+    if (!match || !match[1]) {
+      return null;
+    }
+
+    const parts = match[1].split(',');
+    
+    if (parts.length >= 33) {
+      const currentPrice = parseFloat(parts[1]) || 0;      // 当前价格
+      const yesterdayClose = parseFloat(parts[2]) || 0;    // 昨日收盘价
+      const open = parseFloat(parts[3]) || 0;              // 开盘价
+      const high = parseFloat(parts[4]) || 0;              // 最高价
+      const low = parseFloat(parts[5]) || 0;                // 最低价
+      
+      const change = currentPrice - yesterdayClose;
+      const changePct = yesterdayClose > 0 ? (change / yesterdayClose) * 100 : 0;
+      const volume = parseFloat(parts[8]) || 0;             // 成交量
+      const amount = parseFloat(parts[9]) || 0;             // 成交额
+      
+      return {
+        code: normalizedCode.toUpperCase(),
+        name: parts[0] || normalizedCode,
+        price: currentPrice,
+        change: parseFloat(change.toFixed(2)),
+        changePct: parseFloat(changePct.toFixed(2)),
+        volume: volume,
+        amount: amount,
+        marketCap: 0,  // 新浪API不提供市值
+        turnover: volume,
+        source: 'sina'
+      };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Sina Finance API error:', error);
+    return null;
+  }
+}
+
 // 从API获取股票数据（优先iTick，备用Yahoo/腾讯，始终返回本地数据）
 async function getStockDataFromAPI(stockCode: string) {
   // 首先获取本地映射的公司信息
@@ -520,25 +590,52 @@ async function getStockDataFromAPI(stockCode: string) {
     };
   } catch (error) {
     console.error('获取股票数据失败:', error);
-    // 异常时返回本地数据
-    if (localInfo) {
+    // 异常时尝试新浪API
+  }
+  
+  // 腾讯API失败时，尝试新浪财经API
+  try {
+    console.log('尝试使用新浪财经API...');
+    const sinaResult = await getStockDataFromSina(stockCode);
+    if (sinaResult && sinaResult.price > 0) {
+      console.log('新浪财经API成功获取数据');
       return {
-        code: localInfo.code.toUpperCase(),
-        name: localInfo.name,
-        nameEn: localInfo.nameEn,
-        industry: localInfo.industry,
-        price: 0,
-        change: 0,
-        changePct: 0,
-        volume: 0,
-        amount: 0,
-        marketCap: 0,
-        turnover: 0,
-        source: 'local'
+        code: sinaResult.code,
+        name: localInfo ? localInfo.name : sinaResult.name,
+        nameEn: localInfo ? localInfo.nameEn : '',
+        industry: localInfo ? localInfo.industry : '未知',
+        price: sinaResult.price,
+        change: sinaResult.change,
+        changePct: sinaResult.changePct,
+        volume: sinaResult.volume,
+        amount: sinaResult.amount,
+        marketCap: sinaResult.marketCap,
+        turnover: sinaResult.turnover,
+        source: 'sina'
       };
     }
-    return null;
+  } catch (sinaError) {
+    console.error('新浪API也失败:', sinaError);
   }
+  
+  // 所有API都失败，返回本地数据
+  if (localInfo) {
+    return {
+      code: localInfo.code.toUpperCase(),
+      name: localInfo.name,
+      nameEn: localInfo.nameEn,
+      industry: localInfo.industry,
+      price: 0,
+      change: 0,
+      changePct: 0,
+      volume: 0,
+      amount: 0,
+      marketCap: 0,
+      turnover: 0,
+      source: 'local'
+    };
+  }
+  return null;
 }
 
 // 调用Azure OpenAI API
