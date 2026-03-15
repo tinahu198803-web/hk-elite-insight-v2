@@ -1,0 +1,90 @@
+{
+  "description": "港股通股票名单 - 持续更新",
+  "lastUpdated": "2026-03-15",
+  "dataSource": "恒生指数公司官网",
+  "notes": "以下为已纳入港股通的股票，数据仅供参考，请以港交所官网为准",
+  "stocks": {
+    "02659.hk": {
+      "name": "宝济药业-B",
+      "nameEn": "Baoji Pharma",
+      "industry": "生物医药",
+      "stockConnectStatus": "已入通",
+      "connectType": "南向",
+      "hsciType": "小型股",
+      "inclusionDate": "2025-03",
+      "notes": "2024年12月上市，2025年3月纳入恒生综合指数和港股通"
+    },
+    "00700.hk": {
+      "name": "腾讯控股",
+      "nameEn": "Tencent Holdings",
+      "industry": "互联网",
+      "stockConnectStatus": "已入通",
+      "connectType": "南向",
+      "hsciType": "大型股",
+      "inclusionDate": "上市即入通"
+    },
+    "09988.hk": {
+      "name": "阿里巴巴-SW",
+      "nameEn": "Alibaba Group",
+      "industry": "互联网",
+      "stockConnectStatus": "已入通",
+      "connectType": "南向",
+      "hsciType": "大型股",
+      "inclusionDate": "2019-11"
+    },
+    "03690.hk": {
+      "name": "美团-W",
+      "nameEn": "Meituan",
+      "industry": "互联网",
+      "stockConnectStatus": "已入通",
+      "connectType": "南向",
+      "hsciType": "大型股",
+      "inclusionDate": "2018-09"
+    },
+    "01810.hk": {
+      "name": "小米集团-W",
+      "nameEn": "Xiaomi Group",
+      "industry": "互联网",
+      "stockConnectStatus": "已入通",
+      "connectType": "南向",
+      "hsciType": "大型股",
+      "inclusionDate": "2018-07"
+    },
+    "02418.hk": {
+      "name": "京东集团-SW",
+      "nameEn": "JD.com",
+      "industry": "互联网",
+      "stockConnectStatus": "已入通",
+      "connectType": "南向",
+      "hsciType": "大型股",
+      "inclusionDate": "2024-05"
+    },
+    "01877.hk": {
+      "name": "百济神州",
+      "nameEn": "BeiGene",
+      "industry": "生物医药",
+      "stockConnectStatus": "已入通",
+      "connectType": "南向",
+      "hsciType": "大型股",
+      "inclusionDate": "2021-12"
+    },
+    "06618.hk": {
+      "name": "京东健康",
+      "nameEn": "JD Health",
+      "industry": "互联网医疗",
+      "stockConnectStatus": "已入通",
+      "connectType": "南向",
+      "hsciType": "中型股",
+      "inclusionDate": "2020-12"
+    },
+    "02318.hk": {
+      "name": "中国平安",
+      "nameEn": "Ping An",
+      "industry": "保险",
+      "stockConnectStatus": "已入通",
+      "connectType": "南向",
+      "hsciType": "大型股",
+      "inclusionDate": "上市即入通"
+    }
+  }
+}

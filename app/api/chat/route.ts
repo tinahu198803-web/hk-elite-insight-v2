@@ -1,6 +1,27 @@
 import { NextResponse } from 'next/server';
 import expertsConfig from '../../config/experts.json';
 import stocksConfig from '../../config/hk-stocks.json';
+import stockConnectKnowledge from '../../config/stock-connect-knowledge.json';
+
+// 港股通知识库
+const STOCK_CONNECT_MAP = stockConnectKnowledge.stocks || {};
+
+// 获取港股通状态
+function getStockConnectInfo(stockCode: string): any {
+  const normalizedCode = normalizeStockCode(stockCode);
+  for (const [key, info] of Object.entries(STOCK_CONNECT_MAP)) {
+    if (key.toLowerCase() === normalizedCode.toLowerCase()) {
+      return {
+        stockConnectStatus: info.stockConnectStatus || '未知',
+        connectType: info.connectType || '',
+        hsciType: info.hsciType || '',
+        inclusionDate: info.inclusionDate || '',
+        notes: info.notes || ''
+      };
+    }
+  }
+  return null;
+}
 
 // Azure OpenAI 配置 - 使用环境变量
 const AZURE_OPENAI_ENDPOINT = process.env.AZURE_OPENAI_ENDPOINT || '';
@@ -174,6 +195,8 @@ async function getStockData(stockCode: string): Promise<any> {
   if (localInfo) {
     // 尝试获取API数据
     const apiResult = await getStockDataFromAPI(stockCode).catch(() => null);
+    // 获取港股通状态
+    const connectInfo = getStockConnectInfo(stockCode);
     
     if (apiResult && apiResult.price > 0) {
       // API成功，合并数据
@@ -187,7 +210,11 @@ async function getStockData(stockCode: string): Promise<any> {
         changePct: apiResult.changePct,
         marketCap: apiResult.marketCap,
         turnover: apiResult.turnover,
-        source: 'realtime'
+        source: 'realtime',
+        stockConnectStatus: connectInfo?.stockConnectStatus || null,
+        connectType: connectInfo?.connectType || null,
+        hsciType: connectInfo?.hsciType || null,
+        inclusionDate: connectInfo?.inclusionDate || null
       };
     }
     
@@ -202,7 +229,11 @@ async function getStockData(stockCode: string): Promise<any> {
       changePct: 0,
       marketCap: 0,
       turnover: 0,
-      source: 'local'
+      source: 'local',
+      stockConnectStatus: connectInfo?.stockConnectStatus || null,
+      connectType: connectInfo?.connectType || null,
+      hsciType: connectInfo?.hsciType || null,
+      inclusionDate: connectInfo?.inclusionDate || null
     };
   }
   
@@ -784,12 +815,17 @@ export async function POST(request: Request) {
           const priceInfo = stock.price > 0 
             ? `当前价: ${stock.price}港元, 涨跌: ${stock.change > 0 ? '+' : ''}${stock.change}港元 (${stock.changePct}%), 流动市值: ${(stock.marketCap / 100000000).toFixed(2)}亿港元`
             : '价格数据暂未获取';
+          
+          // 港股通状态信息
+          const connectStatus = stock.stockConnectStatus 
+            ? `\n港股通状态: ${stock.stockConnectStatus} ${stock.connectType ? '(' + stock.connectType + ')' : ''}\n恒生综合指数类型: ${stock.hsciType || '未知'}\n纳入时间: ${stock.inclusionDate || '未知'}`
+            : '';
             
           stockInfoContext += `股票代码: ${stock.code}
 公司名称: ${stock.name}
 英文名称: ${stock.nameEn}
 所属行业: ${stock.industry}
-${priceInfo}
+${priceInfo}${connectStatus}
 ---\n`;
         });
         
