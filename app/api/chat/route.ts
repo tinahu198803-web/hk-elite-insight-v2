@@ -2,46 +2,8 @@ import { NextResponse } from 'next/server';
 import expertsConfig from '../../config/experts.json';
 import stocksConfig from '../../config/hk-stocks.json';
 import stockConnectKnowledge from '../../config/stock-connect-knowledge.json';
-import { writeFileSync, existsSync, mkdirSync, readFileSync } from 'fs';
-import { join } from 'path';
 
-// 用户问题记录存储
-const DATA_DIR = join(process.cwd(), 'data');
-const QUESTIONS_FILE = join(DATA_DIR, 'user-questions.json');
-
-function ensureDataDir() {
-  if (!existsSync(DATA_DIR)) {
-    mkdirSync(DATA_DIR, { recursive: true });
-  }
-}
-
-function readQuestions() {
-  ensureDataDir();
-  if (!existsSync(QUESTIONS_FILE)) {
-    return [];
-  }
-  try {
-    const data = readFileSync(QUESTIONS_FILE, 'utf-8');
-    return JSON.parse(data);
-  } catch {
-    return [];
-  }
-}
-
-function saveQuestions(questions: any[]) {
-  ensureDataDir();
-  writeFileSync(QUESTIONS_FILE, JSON.stringify(questions, null, 2));
-}
-
-function getWeekNumber(date: Date): string {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const dayNum = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return `${d.getUTCFullYear()}-W${String(Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)).padStart(2, '0')}`;
-}
-
-// 记录用户问题
+// 记录用户问题 - 改为调用API进行持久化存储
 function recordUserQuestion(data: {
   userId?: string;
   userEmail?: string;
@@ -53,25 +15,12 @@ function recordUserQuestion(data: {
   sessionId?: string;
 }) {
   try {
-    const questions = readQuestions();
-    const newQuestion = {
-      id: `q_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      userId: data.userId || 'anonymous',
-      userEmail: data.userEmail || '',
-      userName: data.userName || '',
-      expertId: data.expertId,
-      expertName: data.expertName,
-      question: data.question.substring(0, 2000),
-      answer: data.answer ? data.answer.substring(0, 5000) : '',
-      sessionId: data.sessionId || '',
-      timestamp: new Date().toISOString(),
-      date: new Date().toISOString().split('T')[0],
-      week: getWeekNumber(new Date()),
-      month: new Date().toISOString().slice(0, 7),
-    };
-    questions.push(newQuestion);
-    saveQuestions(questions);
-    console.log('用户问题已记录:', newQuestion.id);
+    // 调用持久化API保存问题
+    fetch(`${process.env.NEXT_PUBLIC_APP_URL || ''}/api/user-questions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    }).catch(err => console.error('记录问题失败:', err));
   } catch (error) {
     console.error('记录问题失败:', error);
   }
@@ -925,15 +874,6 @@ ${priceInfo}${connectStatus}
       }
     }
 
-    // 记录用户问题
-    recordUserQuestion({
-      expertId: expertId,
-      expertName: expert.name,
-      question: message,
-      answer: responseData.response || '',
-      sessionId: body.sessionId || '',
-    });
-
     // 构建返回数据 - 确保detectedStocks始终是数组
     const responseData: any = {
       expert: expert.name,
@@ -941,6 +881,15 @@ ${priceInfo}${connectStatus}
       timestamp: new Date().toISOString(),
       detectedStocks: [] // 初始化为空数组
     };
+
+    // 记录用户问题（在responseData构建完成后）
+    recordUserQuestion({
+      expertId: expertId,
+      expertName: expert.name,
+      question: message,
+      answer: responseData.response || '',
+      sessionId: body.sessionId || '',
+    });
 
     // 始终返回股票信息（即使AI没有正确使用）
     if (stockDataResults.length > 0) {
