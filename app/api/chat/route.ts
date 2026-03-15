@@ -297,6 +297,11 @@ async function getStockDataFromITick(stockCode: string) {
   
   const url = `${ITICK_API_BASE}/stock/quotes?region=hk&code=${numericCode}`;
   
+  console.log('=== iTick API Debug ===');
+  console.log('API Key exists:', ITICK_API_KEY && ITICK_API_KEY.length > 0);
+  console.log('API Key (first 10 chars):', ITICK_API_KEY ? ITICK_API_KEY.substring(0, 10) + '...' : 'EMPTY');
+  console.log('Request URL:', url);
+  
   try {
     const response = await fetch(url, {
       headers: {
@@ -306,12 +311,17 @@ async function getStockDataFromITick(stockCode: string) {
       next: { revalidate: 30 } // 缓存30秒
     });
 
+    console.log('iTick Response status:', response.status);
+    
     if (!response.ok) {
       console.error('iTick API error:', response.status);
+      const errorText = await response.text();
+      console.error('iTick Error response:', errorText);
       return null;
     }
 
     const data = await response.json();
+    console.log('iTick Response data:', JSON.stringify(data).substring(0, 200));
     
     if (data && data.data && data.data.length > 0) {
       const stock = data.data[0];
