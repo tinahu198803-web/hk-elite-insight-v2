@@ -38,11 +38,23 @@ const YAHOO_FINANCE_API = 'https://query1.finance.yahoo.com/v8/finance/chart/';
 const SINA_FINANCE_API = 'https://hq.sinajs.cn/list=hk';
 
 // 从外部JSON加载港股股票映射表
-const HK_STOCK_MAP: Record<string, { name: string; nameEn: string; industry: string; listedDate?: string }> = 
+// 股票信息类型定义
+type StockInfo = {
+  name: string;
+  nameEn: string;
+  industry: string;
+  listedDate?: string;
+  stockConnectStatus?: string;
+  connectType?: string;
+  hsciType?: string;
+  inclusionDate?: string;
+};
+
+const HK_STOCK_MAP: Record<string, StockInfo> = 
   stocksConfig.stocks || {};
 
 // 备用股票映射 - 确保基本股票能识别
-const FALLBACK_STOCK_MAP: Record<string, { name: string; nameEn: string; industry: string }> = {
+const FALLBACK_STOCK_MAP: Record<string, StockInfo> = {
   '00700.hk': { name: '腾讯控股', nameEn: 'Tencent Holdings', industry: '互联网' },
   '09988.hk': { name: '阿里巴巴-SW', nameEn: 'Alibaba Group', industry: '互联网' },
   '03690.hk': { name: '美团-W', nameEn: 'Meituan', industry: '互联网' },
@@ -108,7 +120,7 @@ const FALLBACK_STOCK_MAP: Record<string, { name: string; nameEn: string; industr
 };
 
 // 合并两个数据源
-const COMBINED_STOCK_MAP = { ...FALLBACK_STOCK_MAP, ...HK_STOCK_MAP };
+const COMBINED_STOCK_MAP: Record<string, StockInfo> = { ...FALLBACK_STOCK_MAP, ...HK_STOCK_MAP };
 
 // 港股股票代码规范化
 function normalizeStockCode(code: string): string {
