@@ -115,6 +115,16 @@
       "connectType": "南向",
       "hsciType": "大型股",
       "inclusionDate": "上市即入通"
+    },
+    "00756.hk": {
+      "name": "森美控股",
+      "nameEn": "Sino-US United Holdings",
+      "industry": "消费",
+      "stockConnectStatus": "未入通",
+      "connectType": "",
+      "hsciType": "",
+      "inclusionDate": "",
+      "notes": "市值不足50亿，未纳入港股通"
     }
   }
 }

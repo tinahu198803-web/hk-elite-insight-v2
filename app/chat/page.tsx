@@ -109,6 +109,8 @@ export default function ChatPage() {
   const [expert, setExpert] = useState<Expert | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
+  const [companyName, setCompanyName] = useState('');
+  const [projectContent, setProjectContent] = useState('');
   const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -192,7 +194,9 @@ ${expertData.features?.map(f => `• ${f}`).join('\n')}
         body: JSON.stringify({
           expertId: expert.id,
           message: inputMessage,
-          history
+          history,
+          companyName,
+          projectContent
         })
       });
 
@@ -407,6 +411,24 @@ ${expertData.features?.map(f => `• ${f}`).join('\n')}
       {/* 输入框 */}
       <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-primary-950 to-primary-900 p-4">
         <div className="max-w-3xl mx-auto">
+          {/* 公司和项目输入行 */}
+          <div className="flex gap-2 mb-2">
+            <input
+              type="text"
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
+              placeholder="公司名称（选填）"
+              className="flex-1 bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-400 focus:outline-none focus:border-blue-500"
+            />
+            <input
+              type="text"
+              value={projectContent}
+              onChange={(e) => setProjectContent(e.target.value)}
+              placeholder="项目/内容（选填）"
+              className="flex-1 bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-400 focus:outline-none focus:border-blue-500"
+            />
+          </div>
+          
           <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-2 flex items-center">
             <input
               type="text"

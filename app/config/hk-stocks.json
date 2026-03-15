@@ -246,7 +246,8 @@
     "03383.hk": { "name": "雅居乐集团", "nameEn": "Agile Group", "industry": "房地产", "listedDate": "2005-12-21" },
     "01918.hk": { "name": "融创中国", "nameEn": "Sunac China", "industry": "房地产", "listedDate": "2010-10-07" },
     "02777.hk": { "name": "富力地产", "nameEn": "R&F Properties", "industry": "房地产", "listedDate": "2005-07-14" },
-    "03333.hk": { "name": "中国铁建", "nameEn": "CRCC", "industry": "基建", "listedDate": "2008-07-01" }
+    "03333.hk": { "name": "中国铁建", "nameEn": "CRCC", "industry": "基建", "listedDate": "2008-07-01" },
+    "00756.hk": { "name": "森美控股", "nameEn": "Sino-US United Holdings", "industry": "消费", "listedDate": "2001-07-10" }
   },
   "notes": "此映射表包含260只主要港股，涵盖金融、房地产、科技、医药、消费等主要行业"
 }

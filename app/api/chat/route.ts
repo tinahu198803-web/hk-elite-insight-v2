@@ -15,6 +15,7 @@ function recordUserQuestion(data: {
   question: string;
   answer: string;
   sessionId?: string;
+  stockCodes?: string;
 }) {
   try {
     // 调用持久化API保存问题
@@ -28,7 +29,8 @@ function recordUserQuestion(data: {
         projectContent: data.projectContent || '',
         question: data.question,
         answer: data.answer,
-        sessionId: data.sessionId || ''
+        sessionId: data.sessionId || '',
+        stockCodes: data.stockCodes || ''
       })
     }).catch(err => console.error('记录问题失败:', err));
   } catch (error) {
@@ -167,6 +169,7 @@ const FALLBACK_STOCK_MAP: Record<string, StockInfo> = {
   '06613.hk': { name: '医渡科技', nameEn: 'Yidu Tech', industry: '医疗科技' },
   '02586.hk': { name: '上海微创软件', nameEn: 'Shanghai Wicresoft', industry: '软件' },
   '03678.hk': { name: '丙晟科技', nameEn: 'Binglang Technology', industry: '科技' },
+  '00756.hk': { name: '森美控股', nameEn: 'Sino-US United Holdings', industry: '消费' },
 };
 
 // 合并两个数据源
@@ -757,7 +760,7 @@ const FUNCTIONS = [
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { expertId, message, history } = body;
+    const { expertId, message, history, companyName, projectContent } = body;
 
     // 获取专家配置
     const expert = expertsConfig.experts.find(e => e.id === expertId);
@@ -893,12 +896,17 @@ ${priceInfo}${connectStatus}
     };
 
     // 记录用户问题（在responseData构建完成后）
+    // 提取股票代码列表
+    const stockCodesList = stockDataResults.map((s: any) => s.code).join(', ');
     recordUserQuestion({
       expertId: expertId,
       expertName: expert.name,
+      companyName: companyName || '',
+      projectContent: projectContent || '',
       question: message,
       answer: responseData.response || '',
       sessionId: body.sessionId || '',
+      stockCodes: stockCodesList
     });
 
     // 始终返回股票信息（即使AI没有正确使用）
