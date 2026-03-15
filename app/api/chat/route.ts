@@ -2,6 +2,80 @@ import { NextResponse } from 'next/server';
 import expertsConfig from '../../config/experts.json';
 import stocksConfig from '../../config/hk-stocks.json';
 import stockConnectKnowledge from '../../config/stock-connect-knowledge.json';
+import { writeFileSync, existsSync, mkdirSync, readFileSync } from 'fs';
+import { join } from 'path';
+
+// 用户问题记录存储
+const DATA_DIR = join(process.cwd(), 'data');
+const QUESTIONS_FILE = join(DATA_DIR, 'user-questions.json');
+
+function ensureDataDir() {
+  if (!existsSync(DATA_DIR)) {
+    mkdirSync(DATA_DIR, { recursive: true });
+  }
+}
+
+function readQuestions() {
+  ensureDataDir();
+  if (!existsSync(QUESTIONS_FILE)) {
+    return [];
+  }
+  try {
+    const data = readFileSync(QUESTIONS_FILE, 'utf-8');
+    return JSON.parse(data);
+  } catch {
+    return [];
+  }
+}
+
+function saveQuestions(questions: any[]) {
+  ensureDataDir();
+  writeFileSync(QUESTIONS_FILE, JSON.stringify(questions, null, 2));
+}
+
+function getWeekNumber(date: Date): string {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return `${d.getUTCFullYear()}-W${String(Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)).padStart(2, '0')}`;
+}
+
+// 记录用户问题
+function recordUserQuestion(data: {
+  userId?: string;
+  userEmail?: string;
+  userName?: string;
+  expertId: string;
+  expertName: string;
+  question: string;
+  answer: string;
+  sessionId?: string;
+}) {
+  try {
+    const questions = readQuestions();
+    const newQuestion = {
+      id: `q_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      userId: data.userId || 'anonymous',
+      userEmail: data.userEmail || '',
+      userName: data.userName || '',
+      expertId: data.expertId,
+      expertName: data.expertName,
+      question: data.question.substring(0, 2000),
+      answer: data.answer ? data.answer.substring(0, 5000) : '',
+      sessionId: data.sessionId || '',
+      timestamp: new Date().toISOString(),
+      date: new Date().toISOString().split('T')[0],
+      week: getWeekNumber(new Date()),
+      month: new Date().toISOString().slice(0, 7),
+    };
+    questions.push(newQuestion);
+    saveQuestions(questions);
+    console.log('用户问题已记录:', newQuestion.id);
+  } catch (error) {
+    console.error('记录问题失败:', error);
+  }
+}
 
 // 港股通知识库类型定义
 type StockConnectInfo = {
@@ -850,6 +924,15 @@ ${priceInfo}${connectStatus}
         aiResponse = `您好！我是${expert.name}。请问有什么可以帮您？`;
       }
     }
+
+    // 记录用户问题
+    recordUserQuestion({
+      expertId: expertId,
+      expertName: expert.name,
+      question: message,
+      answer: responseData.response || '',
+      sessionId: body.sessionId || '',
+    });
 
     // 构建返回数据 - 确保detectedStocks始终是数组
     const responseData: any = {
