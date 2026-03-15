@@ -50,8 +50,9 @@ type StockInfo = {
   inclusionDate?: string;
 };
 
-const HK_STOCK_MAP: Record<string, StockInfo> = 
-  stocksConfig.stocks || {};
+// 处理stocksConfig的类型问题，使用类型断言
+const stocksData = stocksConfig as { stocks?: Record<string, StockInfo> };
+const HK_STOCK_MAP: Record<string, StockInfo> = stocksData.stocks || {};
 
 // 备用股票映射 - 确保基本股票能识别
 const FALLBACK_STOCK_MAP: Record<string, StockInfo> = {
