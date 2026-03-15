@@ -28,14 +28,10 @@ const AZURE_OPENAI_ENDPOINT = process.env.AZURE_OPENAI_ENDPOINT || '';
 const AZURE_OPENAI_API_KEY = process.env.AZURE_OPENAI_API_KEY || '';
 const AZURE_OPENAI_DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o';
 
-// iTick API配置
-const ITICK_API_BASE = 'https://api.itick.org';
-const ITICK_API_KEY = process.env.ITICK_API_KEY || '';
-
 // 腾讯财经API基础URL
 const TENCENT_FINANCE_API = 'https://qt.gtimg.cn/q=';
 
-// Yahoo Finance API (备用方案，无需API密钥)
+// Yahoo Finance API (主要数据源，免费，无需API密钥)
 const YAHOO_FINANCE_API = 'https://query1.finance.yahoo.com/v8/finance/chart/';
 
 // 新浪财经API (免费备用方案)
@@ -290,63 +286,7 @@ async function searchStockData(stockCode: string) {
   }
 }
 
-// 从iTick API获取股票数据
-async function getStockDataFromITick(stockCode: string) {
-  const normalizedCode = normalizeStockCode(stockCode);
-  const numericCode = normalizedCode.replace(/\.hk$/i, '').replace(/^0+/, '') || normalizedCode;
-  
-  const url = `${ITICK_API_BASE}/stock/quotes?region=hk&code=${numericCode}`;
-  
-  console.log('=== iTick API Debug ===');
-  console.log('API Key exists:', ITICK_API_KEY && ITICK_API_KEY.length > 0);
-  console.log('API Key (first 10 chars):', ITICK_API_KEY ? ITICK_API_KEY.substring(0, 10) + '...' : 'EMPTY');
-  console.log('Request URL:', url);
-  
-  try {
-    const response = await fetch(url, {
-      headers: {
-        'accept': 'application/json',
-        'token': ITICK_API_KEY,
-      },
-      next: { revalidate: 30 } // 缓存30秒
-    });
-
-    console.log('iTick Response status:', response.status);
-    
-    if (!response.ok) {
-      console.error('iTick API error:', response.status);
-      const errorText = await response.text();
-      console.error('iTick Error response:', errorText);
-      return null;
-    }
-
-    const data = await response.json();
-    console.log('iTick Response data:', JSON.stringify(data).substring(0, 200));
-    
-    if (data && data.data && data.data.length > 0) {
-      const stock = data.data[0];
-      return {
-        code: normalizedCode.toUpperCase(),
-        name: stock.n || stock.name || normalizedCode,
-        price: parseFloat(stock.p) || 0,
-        change: parseFloat(stock.d) || 0,
-        changePct: parseFloat(stock.dp) || 0,
-        volume: parseInt(stock.v) || 0,
-        amount: parseFloat(stock.a) || 0,
-        marketCap: parseFloat(stock.mv) || 0, // 市值
-        turnover: parseInt(stock.v) || 0,
-        source: 'itick'
-      };
-    }
-    
-    return null;
-  } catch (error) {
-    console.error('iTick API error:', error);
-    return null;
-  }
-}
-
-// 从Yahoo Finance获取股票数据 (备用方案)
+// 从Yahoo Finance获取股票数据 (免费，无需API密钥)
 async function getStockDataFromYahoo(stockCode: string) {
   const normalizedCode = normalizeStockCode(stockCode);
   // 港股代码转换为Yahoo Finance格式: 02659.HK -> 02659.HK
@@ -481,30 +421,7 @@ async function getStockDataFromAPI(stockCode: string) {
     }
   }
   
-  // 尝试iTick API (如果有密钥)
-  if (ITICK_API_KEY && ITICK_API_KEY.length > 0) {
-    console.log('尝试使用iTick API...');
-    const itickResult = await getStockDataFromITick(stockCode);
-    if (itickResult && itickResult.price > 0) {
-      console.log('iTick API成功获取数据');
-      return {
-        code: itickResult.code,
-        name: localInfo ? localInfo.name : itickResult.name,
-        nameEn: localInfo ? localInfo.nameEn : '',
-        industry: localInfo ? localInfo.industry : '未知',
-        price: itickResult.price,
-        change: itickResult.change,
-        changePct: itickResult.changePct,
-        volume: itickResult.volume,
-        amount: itickResult.amount,
-        marketCap: itickResult.marketCap,
-        turnover: itickResult.turnover,
-        source: 'itick'
-      };
-    }
-  }
-  
-  // iTick失败或无密钥时，使用Yahoo Finance备用方案
+  // 直接使用Yahoo Finance作为主要数据源（免费，无需API密钥）
   console.log('尝试使用Yahoo Finance API...');
   const yahooResult = await getStockDataFromYahoo(stockCode);
   if (yahooResult && yahooResult.price > 0) {
