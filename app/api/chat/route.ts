@@ -71,6 +71,7 @@ const HK_STOCK_MAP: Record<string, StockInfo> = stocksData.stocks || {};
 const FALLBACK_STOCK_MAP: Record<string, StockInfo> = {
   '00100.hk': { name: 'MiniMax-WP', nameEn: 'MiniMax', industry: '人工智能' },
   '02575.hk': { name: '轩竹生物', nameEn: 'Xuanzhu Biotech', industry: '生物医药' },
+  '02655.hk': { name: '果下科技', nameEn: 'Guoxia Technology', industry: '科技' },
   '00700.hk': { name: '腾讯控股', nameEn: 'Tencent Holdings', industry: '互联网' },
   '09988.hk': { name: '阿里巴巴-SW', nameEn: 'Alibaba Group', industry: '互联网' },
   '03690.hk': { name: '美团-W', nameEn: 'Meituan', industry: '互联网' },

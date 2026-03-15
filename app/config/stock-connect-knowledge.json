@@ -24,6 +24,16 @@
       "inclusionDate": "2025-03-09",
       "notes": "2025年3月9日上市，3月9日纳入恒生综合指数和港股通"
     },
+    "02655.hk": {
+      "name": "果下科技",
+      "nameEn": "Guoxia Technology",
+      "industry": "科技",
+      "stockConnectStatus": "已入通",
+      "connectType": "南向",
+      "hsciType": "小型股",
+      "inclusionDate": "2025-03",
+      "notes": "2025年3月上市，已纳入港股通"
+    },
     "02659.hk": {
       "name": "宝济药业-B",
       "nameEn": "Baoji Pharma",
