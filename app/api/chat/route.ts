@@ -133,6 +133,12 @@ const FALLBACK_STOCK_MAP: Record<string, StockInfo> = {
   '06613.hk': { name: '医渡科技', nameEn: 'Yidu Tech', industry: '医疗科技' },
   '02586.hk': { name: '上海微创软件', nameEn: 'Shanghai Wicresoft', industry: '软件' },
   '03678.hk': { name: '丙晟科技', nameEn: 'Binglang Technology', industry: '科技' },
+  // 2025年新股
+  '02575.hk': { name: '轩竹生物', nameEn: 'Xuanzhu Biotech', industry: '生物医药' },
+  '02659.hk': { name: '宝济药业-B', nameEn: 'Baoji Pharma', industry: '生物医药' },
+  '00100.hk': { name: 'MiniMax-WP', nameEn: 'MiniMax', industry: '人工智能' },
+  '06677.hk': { name: '药明康德', nameEn: 'WuXi AppTec', industry: '医药' },
+  '02269.hk': { name: '药明生物', nameEn: 'WuXi Biologics', industry: '生物医药' },
 };
 
 // 合并两个数据源
