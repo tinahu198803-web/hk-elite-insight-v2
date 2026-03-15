@@ -682,6 +682,10 @@ async function getStockDataFromAPI(stockCode: string) {
 // 调用Azure OpenAI API
 async function callAzureOpenAI(messages: any[], temperature: number = 0.7, maxTokens: number = 2000) {
   try {
+    // 确保至少4000 tokens，防止输出截断
+    const finalMaxTokens = Math.max(maxTokens, 4000);
+    console.log('callAzureOpenAI - maxTokens:', finalMaxTokens);
+    
     const response = await fetch(AZURE_OPENAI_ENDPOINT, {
       method: 'POST',
       headers: {
@@ -691,7 +695,7 @@ async function callAzureOpenAI(messages: any[], temperature: number = 0.7, maxTo
       body: JSON.stringify({
         messages: messages,
         temperature: temperature,
-        max_tokens: maxTokens,
+        max_tokens: finalMaxTokens,
       }),
     });
 
@@ -967,10 +971,14 @@ async function callAzureOpenAIWithFunctions(
   maxTokens: number = 2000
 ) {
   try {
+    // 确保至少4000 tokens，防止输出截断
+    const finalMaxTokens = Math.max(maxTokens, 4000);
+    console.log('callAzureOpenAIWithFunctions - maxTokens:', finalMaxTokens);
+    
     const requestBody: any = {
       messages: messages,
       temperature: temperature,
-      max_tokens: maxTokens,
+      max_tokens: finalMaxTokens,
     };
 
     // 如果有函数定义，添加到请求中
@@ -1052,7 +1060,7 @@ async function callAzureOpenAIWithFunctions(
         body: JSON.stringify({
           messages: messages,
           temperature: temperature,
-          max_tokens: maxTokens,
+          max_tokens: Math.max(maxTokens, 4000),  // 确保至少4000token
         }),
       });
 
