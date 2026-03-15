@@ -3,8 +3,21 @@ import expertsConfig from '../../config/experts.json';
 import stocksConfig from '../../config/hk-stocks.json';
 import stockConnectKnowledge from '../../config/stock-connect-knowledge.json';
 
-// 港股通知识库
-const STOCK_CONNECT_MAP = stockConnectKnowledge.stocks || {};
+// 港股通知识库类型定义
+type StockConnectInfo = {
+  name?: string;
+  nameEn?: string;
+  industry?: string;
+  stockConnectStatus?: string;
+  connectType?: string;
+  hsciType?: string;
+  inclusionDate?: string;
+  notes?: string;
+};
+
+// 港股通知识库 - 添加类型断言
+const stockConnectData = stockConnectKnowledge as { stocks?: Record<string, StockConnectInfo> };
+const STOCK_CONNECT_MAP: Record<string, StockConnectInfo> = stockConnectData.stocks || {};
 
 // 获取港股通状态
 function getStockConnectInfo(stockCode: string): any {
