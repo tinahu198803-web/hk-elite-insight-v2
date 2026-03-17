@@ -518,7 +518,8 @@ async function getStockDataFromAPI(stockCode: string) {
   try {
     // 规范化代码（移除.hk后缀用于API查询）
     const codeNum = stockCode.replace(/\.hk$/i, '').replace(/^0+/, '').padStart(5, '0');
-    const url = `${TENCENT_FINANCE_API}${codeNum}`;
+    // 腾讯API港股需要添加hk前缀
+    const url = `${TENCENT_FINANCE_API}hk${codeNum}`;
     
     const response = await fetch(url, {
       headers: {
