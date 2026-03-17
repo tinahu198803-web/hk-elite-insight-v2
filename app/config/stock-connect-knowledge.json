@@ -125,6 +125,16 @@
       "hsciType": "",
       "inclusionDate": "",
       "notes": "市值不足50亿，未纳入港股通"
+    },
+    "01440.hk": {
+      "name": "应星控股",
+      "nameEn": "Star Shine Holdings",
+      "industry": "综合",
+      "stockConnectStatus": "未入通",
+      "connectType": "",
+      "hsciType": "",
+      "inclusionDate": "",
+      "notes": "市值不足50亿，未纳入港股通"
     }
   }
 }
