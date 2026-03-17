@@ -454,10 +454,13 @@ async function getStockDataFromSina(stockCode: string) {
       const changePct = yesterdayClose > 0 ? (change / yesterdayClose) * 100 : 0;
       const volume = parseFloat(parts[8]) || 0;             // 成交量
       const amount = parseFloat(parts[9]) || 0;             // 成交额
+      const apiCompanyName = parts[0] || '';                // API返回的公司名称
       
       return {
         code: normalizedCode.toUpperCase(),
-        name: parts[0] || normalizedCode,
+        name: apiCompanyName || normalizedCode,             // 优先使用API返回的名称
+        nameEn: '',
+        industry: '未知',
         price: currentPrice,
         change: parseFloat(change.toFixed(2)),
         changePct: parseFloat(changePct.toFixed(2)),
@@ -606,12 +609,16 @@ async function getStockDataFromAPI(stockCode: string) {
     const amount = parseFloat(dataParts[37]) || 0; // 成交额
     const marketCap = parseFloat(dataParts[45]) || 0; // 港股市值（单位：港币）
     const turnover = parseFloat(dataParts[38]) || 0; // 成交量
+    // 腾讯API返回的公司名称在第一个元素
+    const apiCompanyName = dataParts[0] || '';
+    const apiCompanyNameEn = dataParts[56] || ''; // 英文名
 
     return {
       code: codeNum + '.HK',
-      name: localInfo ? localInfo.name : dataParts[0], // 优先使用本地映射的公司名
-      nameEn: localInfo ? localInfo.nameEn : '',
-      industry: localInfo ? localInfo.industry : dataParts[57] || '未知',
+      // 优先使用API返回的公司名称（更准确），本地配置作为备用
+      name: apiCompanyName || (localInfo ? localInfo.name : '未知'),
+      nameEn: apiCompanyNameEn || (localInfo ? localInfo.nameEn : ''),
+      industry: localInfo ? localInfo.industry : (dataParts[57] || '未知'),
       price: price,
       change: change,
       changePct: changePct,
