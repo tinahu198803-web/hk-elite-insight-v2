@@ -171,7 +171,7 @@ const FALLBACK_STOCK_MAP: Record<string, StockInfo> = {
   '03678.hk': { name: '丙晟科技', nameEn: 'Binglang Technology', industry: '科技' },
   '00756.hk': { name: '森美控股', nameEn: 'Sino-US United Holdings', industry: '消费' },
   '01440.hk': { name: '应星控股', nameEn: 'Star Shine Holding', industry: '综合' },
-  '02587.hk': { name: '乐普生物-B', nameEn: 'Lepu Biopharma', industry: '生物医药' },
+  '02587.hk': { name: '健康之路', nameEn: 'Jiankangzhilu', industry: '医疗健康' },
 };
 
 // 合并两个数据源
