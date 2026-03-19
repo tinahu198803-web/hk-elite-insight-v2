@@ -931,8 +931,18 @@ export async function POST(request: Request) {
         stockInfoContext = `\n\n【股票数据查询结果 - 必须严格使用以下信息，禁止编造】\n`;
         stockDataResults.forEach(stock => {
           const priceInfo = stock.price > 0 
-            ? `当前价: ${stock.price}港元, 涨跌: ${stock.change > 0 ? '+' : ''}${stock.change}港元 (${stock.changePct}%), 流动市值: ${(stock.marketCap / 100000000).toFixed(2)}亿港元`
-            : '价格数据暂未获取';
+            ? `当前价: \${stock.price}港元, 涨跌: \${stock.change > 0 ? '+' : ''}\${stock.change}港元 (\${stock.changePct}%)`
+            : '当前价格: 暂无实时数据';
+          
+          // 市值信息 - 始终显示
+          let marketCapInfo = '市值: 暂无数据';
+          if (stock.marketCap && stock.marketCap > 0) {
+            marketCapInfo = `流动市值: \${(stock.marketCap / 100000000).toFixed(2)}亿港元`;
+          } else if (stock.marketCapHKD && stock.marketCapHKD > 0) {
+            marketCapInfo = `流动市值: \${stock.marketCapHKD}亿港元`;
+          } else {
+            marketCapInfo = '市值: 暂不可用（建议访问 https://hk.finance.yahoo.com/ 查询）';
+          }
           
           // 港股通状态信息
           const connectStatus = stock.stockConnectStatus 
