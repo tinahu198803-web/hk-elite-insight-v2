@@ -10,8 +10,16 @@
   },
   "crons": [
     {
+      "path": "/api/crawl/stock-data",
+      "schedule": "0 8 * * *"
+    },
+    {
       "path": "/api/cron/update-stock-db",
-      "schedule": "0 0 * * *"
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/auto-update",
+      "schedule": "0 8,20 * * *"
     },
     {
       "path": "/api/cron/weekly-report",
