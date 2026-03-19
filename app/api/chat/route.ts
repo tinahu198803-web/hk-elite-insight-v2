@@ -82,6 +82,11 @@ const TENCENT_FINANCE_API = 'https://qt.gtimg.cn/q=';
 // Yahoo Finance API (主要数据源，免费，无需API密钥)
 const YAHOO_FINANCE_API = 'https://query1.finance.yahoo.com/v8/finance/chart/';
 
+// Finnhub API (免费，支持港股，提供市值/PE/分析师数据)
+// 获取免费API Key: https://finnhub.io/register (免费版每天100次)
+const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY || 'demo';
+const FINNHUB_API = 'https://finnhub.io/api/v1';
+
 // 新浪财经API (免费备用方案)
 const SINA_FINANCE_API = 'https://hq.sinajs.cn/list=hk';
 
@@ -409,6 +414,73 @@ async function getStockDataFromYahoo(stockCode: string) {
   }
 }
 
+// 从Finnhub API获取详细股票数据（包括市值、PE等）
+async function getStockDataFromFinnhub(stockCode: string) {
+  const normalizedCode = normalizeStockCode(stockCode);
+  // 港股代码: 02659.HK -> HK:02659
+  const codeNum = normalizedCode.replace('.hk', '').replace(/^0+/, '').padStart(5, '0');
+  const symbol = `HK.${codeNum}`;
+  
+  try {
+    // 并行获取多个数据
+    const [quoteRes, profileRes, metricsRes] = await Promise.all([
+      fetch(`${FINNHUB_API}/quote?symbol=${symbol}&token=${FINNHUB_API_KEY}`, {
+        headers: { 'User-Agent': 'Mozilla/5.0' }
+      }),
+      fetch(`${FINNHUB_API}/stock/profile2?symbol=${symbol}&token=${FINNHUB_API_KEY}`, {
+        headers: { 'User-Agent': 'Mozilla/5.0' }
+      }),
+      fetch(`${FINNHUB_API}/stock/metric?symbol=${symbol}&metric=all&token=${FINNHUB_API_KEY}`, {
+        headers: { 'User-Agent': 'Mozilla/5.0' }
+      })
+    ]);
+
+    if (!quoteRes.ok) {
+      console.error('Finnhub quote API error:', quoteRes.status);
+      return null;
+    }
+
+    const quoteData = await quoteRes.json();
+    const profileData = await profileRes.ok ? await profileRes.json() : {};
+    const metricsData = metricsRes.ok ? await metricsRes.json() : {};
+
+    // 获取市值数据
+    let marketCap = 0;
+    if (metricsData?.metric?.marketCapitalization) {
+      marketCap = metricsData.metric.marketCapitalization * 1000000; // 转换为完整数值
+    } else if (profileData?.marketCapitalization) {
+      marketCap = profileData.marketCapitalization;
+    }
+
+    // 计算市值（亿港元）
+    const marketCapHKD = marketCap > 0 ? (marketCap / 100000000).toFixed(2) : null;
+
+    return {
+      code: normalizedCode.toUpperCase(),
+      name: profileData?.name || normalizedCode,
+      price: quoteData?.c || 0,
+      change: quoteData?.d || 0,
+      changePct: quoteData?.dp || 0,
+      high: quoteData?.h || 0,
+      low: quoteData?.l || 0,
+      open: quoteData?.o || 0,
+      prevClose: quoteData?.pc || 0,
+      volume: quoteData?.v || 0,
+      marketCap: marketCap,          // 原始数值
+      marketCapHKD: marketCapHKD,    // 亿港元
+      pe: metricsData?.metric?.peExclExtraTTM || null,
+      eps: metricsData?.metric?.epsExclExtraItems || null,
+      dividend: metricsData?.metric?.dividendYieldIndicatedAnnual || null,
+      week52High: metricsData?.metric?.['52WeekHigh'] || null,
+      week52Low: metricsData?.metric?.['52WeekLow'] || null,
+      source: 'finnhub'
+    };
+  } catch (error) {
+    console.error('Finnhub API error:', error);
+    return null;
+  }
+}
+
 // 从新浪财经API获取股票数据 (免费备用方案)
 async function getStockDataFromSina(stockCode: string) {
   const normalizedCode = normalizeStockCode(stockCode);
@@ -479,7 +551,7 @@ async function getStockDataFromSina(stockCode: string) {
   }
 }
 
-// 从API获取股票数据（优先iTick，备用Yahoo/腾讯，始终返回本地数据）
+// 从API获取股票数据（优先Finnhub获取市值，备用Yahoo/腾讯，始终返回本地数据）
 async function getStockDataFromAPI(stockCode: string) {
   // 首先获取本地映射的公司信息
   const normalizedCode = normalizeStockCode(stockCode);
@@ -491,11 +563,44 @@ async function getStockDataFromAPI(stockCode: string) {
     }
   }
   
-  // 直接使用Yahoo Finance作为主要数据源（免费，无需API密钥）
   console.log('=== 股票数据查询 ===');
   console.log('股票代码:', stockCode);
-  console.log('尝试使用Yahoo Finance API...');
   
+  // 优先尝试Finnhub（支持市值数据）
+  if (FINNHUB_API_KEY !== 'demo') {
+    console.log('尝试使用Finnhub API (支持市值)...');
+    const finnhubResult = await getStockDataFromFinnhub(stockCode);
+    if (finnhubResult && finnhubResult.price > 0) {
+      console.log('Finnhub成功获取数据, 市值:', finnhubResult.marketCapHKD, '亿港元');
+      return {
+        code: finnhubResult.code,
+        name: localInfo ? localInfo.name : finnhubResult.name,
+        nameEn: localInfo ? localInfo.nameEn : '',
+        industry: localInfo ? localInfo.industry : '未知',
+        price: finnhubResult.price,
+        change: finnhubResult.change,
+        changePct: finnhubResult.changePct,
+        high: finnhubResult.high,
+        low: finnhubResult.low,
+        open: finnhubResult.open,
+        prevClose: finnhubResult.prevClose,
+        volume: finnhubResult.volume,
+        amount: 0,
+        marketCap: finnhubResult.marketCap,
+        marketCapHKD: finnhubResult.marketCapHKD,
+        pe: finnhubResult.pe,
+        eps: finnhubResult.eps,
+        dividend: finnhubResult.dividend,
+        week52High: finnhubResult.week52High,
+        week52Low: finnhubResult.week52Low,
+        turnover: finnhubResult.volume,
+        source: 'finnhub'
+      };
+    }
+  }
+  
+  // 尝试Yahoo Finance（免费，无需API密钥）
+  console.log('尝试使用Yahoo Finance API...');
   const yahooResult = await getStockDataFromYahoo(stockCode);
   console.log('Yahoo结果:', yahooResult);
   
