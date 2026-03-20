@@ -418,8 +418,9 @@ async function getStockDataFromYahoo(stockCode: string) {
 async function getStockDataFromFinnhub(stockCode: string) {
   const normalizedCode = normalizeStockCode(stockCode);
   // 港股代码: 02659.HK -> HK:02659
+  // 港股代码格式转换
   const codeNum = normalizedCode.replace('.hk', '').replace(/^0+/, '').padStart(5, '0');
-  const symbol = `HK.${codeNum}`;
+  const symbol = `${codeNum}.HK`; // Yahoo Finance格式: 00700.HK
   
   try {
     // 并行获取多个数据
@@ -566,9 +567,31 @@ async function getStockDataFromAPI(stockCode: string) {
   console.log('=== 股票数据查询 ===');
   console.log('股票代码:', stockCode);
   
-  // 优先尝试Finnhub（支持市值数据）
+  // 优先尝试腾讯API（有市值数据）
+  console.log('尝试使用腾讯财经API (支持市值)...');
+  const tencentResult = await getStockDataFromTencent(stockCode);
+  if (tencentResult && tencentResult.price > 0) {
+    console.log('腾讯API成功获取数据, 市值:', tencentResult.marketCapHKD, '亿港元');
+    return {
+      code: tencentResult.code,
+      name: localInfo ? localInfo.name : tencentResult.name,
+      nameEn: localInfo ? localInfo.nameEn : '',
+      industry: localInfo ? localInfo.industry : '未知',
+      price: tencentResult.price,
+      change: tencentResult.change,
+      changePct: tencentResult.changePct,
+      volume: tencentResult.volume,
+      amount: tencentResult.amount,
+      marketCap: tencentResult.marketCap,
+      marketCapHKD: tencentResult.marketCapHKD,
+      turnover: tencentResult.volume,
+      source: 'tencent'
+    };
+  }
+  
+  // Finnhub备用（支持市值数据）
   if (FINNHUB_API_KEY !== 'demo') {
-    console.log('尝试使用Finnhub API (支持市值)...');
+    console.log('尝试使用Finnhub API...');
     const finnhubResult = await getStockDataFromFinnhub(stockCode);
     if (finnhubResult && finnhubResult.price > 0) {
       console.log('Finnhub成功获取数据, 市值:', finnhubResult.marketCapHKD, '亿港元');
@@ -718,7 +741,12 @@ async function getStockDataFromAPI(stockCode: string) {
     const changePct = parseFloat(dataParts[3]) || 0;
     const volume = parseInt(dataParts[6]) || 0; // 成交量
     const amount = parseFloat(dataParts[37]) || 0; // 成交额
-    const marketCap = parseFloat(dataParts[45]) || 0; // 港股市值（单位：港币）
+    // 市值计算：最后一个字段(50)是市值，单位是亿港元
+    // 格式：v_hk02659="100~名称~代码~现价~涨跌~...~市值(亿港元)"
+    const marketCapRaw = dataParts.length > 50 ? parseFloat(dataParts[50]) || 0 : 0;
+    // 如果是亿港元，转换为完整数值
+    const marketCap = marketCapRaw > 0 ? marketCapRaw * 100000000 : 0;
+    const marketCapHKD = marketCapRaw > 0 ? marketCapRaw.toFixed(2) : null; // 亿港元字符串
     const turnover = parseFloat(dataParts[38]) || 0; // 成交量
     // 腾讯API返回的公司名称在第一个元素
     const apiCompanyName = dataParts[0] || '';
@@ -736,6 +764,7 @@ async function getStockDataFromAPI(stockCode: string) {
       volume: volume,
       amount: amount,
       marketCap: marketCap,
+      marketCapHKD: marketCapHKD,
       turnover: turnover,
       source: 'tencent'
     };
