@@ -162,21 +162,25 @@ async function getFromYahoo(code: string): Promise<any> {
   }
 }
 
-// 从Finnhub获取数据
+// 从Finnhub获取数据 - 使用metric端点获取市值
 async function getFromFinnhub(code: string): Promise<any> {
   if (!FINNHUB_API_KEY) {
     return { success: false, error: '未配置Finnhub API Key' };
   }
 
   try {
-    // Finnhub港股格式
-    const symbol = code.replace('.HK', '').replace(/^0+/, '') + '.HK';
+    // Finnhub港股格式: 02659 -> 02659.HK
+    const symbol = code.replace('.HK', '').replace('.hk', '').replace(/^0+/, '') + '.HK';
     
-    const [quoteRes, profileRes] = await Promise.all([
+    // 并行获取quote, profile, metrics数据
+    const [quoteRes, profileRes, metricsRes] = await Promise.all([
       fetch(`${FINNHUB_API}/quote?symbol=${symbol}&token=${FINNHUB_API_KEY}`, {
         headers: { 'User-Agent': 'Mozilla/5.0' }
       }),
       fetch(`${FINNHUB_API}/stock/profile2?symbol=${symbol}&token=${FINNHUB_API_KEY}`, {
+        headers: { 'User-Agent': 'Mozilla/5.0' }
+      }),
+      fetch(`${FINNHUB_API}/stock/metric?symbol=${symbol}&metric=all&token=${FINNHUB_API_KEY}`, {
         headers: { 'User-Agent': 'Mozilla/5.0' }
       })
     ]);
@@ -187,10 +191,14 @@ async function getFromFinnhub(code: string): Promise<any> {
 
     const quote = await quoteRes.json();
     const profile = profileRes.ok ? await profileRes.json() : {};
+    const metrics = metricsRes.ok ? await metricsRes.json() : {};
 
     const price = quote.c || 0;
     const change = quote.d || 0;
     const changePct = quote.dp || 0;
+
+    // 从metrics获取市值（metric端点更可靠）
+    const marketCap = metrics?.metric?.marketCapitalization || profile.marketCapitalization || 0;
 
     return {
       success: true,
@@ -201,8 +209,8 @@ async function getFromFinnhub(code: string): Promise<any> {
       change,
       changePct,
       volume: quote.v || 0,
-      marketCap: profile.marketCapitalization || 0,
-      marketCapText: profile.marketCapitalization ? `${(profile.marketCapitalization / 100000000).toFixed(2)}亿港元` : null,
+      marketCap: marketCap,
+      marketCapText: marketCap ? `${(marketCap / 100000000).toFixed(2)}亿港元` : null,
       timestamp: new Date().toISOString()
     };
   } catch (error: any) {
@@ -226,11 +234,11 @@ export async function GET(request: Request) {
   console.log('========== 股票数据查询 ==========');
   console.log('股票代码:', code);
 
-  // 按优先级尝试各数据源
+  // 按优先级尝试各数据源 - Finnhub优先（支持市值数据）
   const sources = [
+    { name: 'Finnhub', fn: () => getFromFinnhub(code) },
     { name: '腾讯财经', fn: () => getFromTencent(code) },
-    { name: 'Yahoo Finance', fn: () => getFromYahoo(code) },
-    { name: 'Finnhub', fn: () => getFromFinnhub(code) }
+    { name: 'Yahoo Finance', fn: () => getFromYahoo(code) }
   ];
 
   let lastError = '';
