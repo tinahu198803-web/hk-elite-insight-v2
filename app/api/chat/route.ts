@@ -565,10 +565,10 @@ async function getStockDataFromAPI(stockCode: string) {
   }
   
   console.log('=== 股票数据查询 ===');
-  console.log('股票代码:', stockCode);
+  console.log('股票代码:', stockCode, '标准化:', normalizedCode);
   
   // 优先尝试腾讯API（有市值数据）
-  console.log('尝试使用腾讯财经API (支持市值)...');
+  console.log('尝试使用腾讯财经API...');
   const tencentResult = await getStockDataFromTencent(stockCode);
   if (tencentResult && tencentResult.price > 0) {
     console.log('腾讯API成功获取数据, 市值:', tencentResult.marketCapHKD, '亿港元');
@@ -750,7 +750,6 @@ async function getStockDataFromAPI(stockCode: string) {
     const marketCap = marketCapRaw > 0 ? marketCapRaw * 100000000 : 0;
     const marketCapHKD = marketCapRaw > 0 ? marketCapRaw.toFixed(2) : null; // 亿港元字符串
     const turnover = volume; // 成交量
-    const turnover = parseFloat(dataParts[38]) || 0; // 成交量
     // 腾讯API返回的公司名称在第一个元素
     const apiCompanyName = dataParts[0] || '';
     const apiCompanyNameEn = dataParts[56] || ''; // 英文名
@@ -958,6 +957,7 @@ export async function POST(request: Request) {
         for (const code of uniqueCodes) {
           const directResult = getStockDataDirect(code);
           if (directResult) {
+            // 即使是本地数据也要获取基本信息
             stockDataResults.push(directResult);
           }
         }
