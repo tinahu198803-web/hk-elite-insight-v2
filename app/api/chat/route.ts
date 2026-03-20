@@ -735,18 +735,21 @@ async function getStockDataFromAPI(stockCode: string) {
       return null;
     }
 
-    // 腾讯API返回的数据
-    const price = parseFloat(dataParts[1]) || 0;
-    const change = parseFloat(dataParts[2]) || 0;
-    const changePct = parseFloat(dataParts[3]) || 0;
-    const volume = parseInt(dataParts[6]) || 0; // 成交量
-    const amount = parseFloat(dataParts[37]) || 0; // 成交额
-    // 市值计算：最后一个字段(50)是市值，单位是亿港元
-    // 格式：v_hk02659="100~名称~代码~现价~涨跌~...~市值(亿港元)"
-    const marketCapRaw = dataParts.length > 50 ? parseFloat(dataParts[50]) || 0 : 0;
+    // 腾讯API返回的数据格式：v_hk02659="100~名称~代码~现价~涨跌~涨跌%(成交量)~...
+    // dataParts[0]=100(类型), [1]=名称, [2]=代码, [3]=现价, [4]=昨收, [5]=当前, [6]=成交量...
+    const price = parseFloat(dataParts[3]) || 0;      // 现价
+    const yesterdayClose = parseFloat(dataParts[4]) || 0;  // 昨收价
+    const change = price - yesterdayClose;           // 涨跌额
+    const changePct = yesterdayClose > 0 ? (change / yesterdayClose * 100) : 0; // 涨跌%
+    const volume = parseInt(dataParts[6]) || 0;      // 成交量(股)
+    const amount = parseFloat(dataParts[37]) || 0;   // 成交额
+    
+    // 市值在最后一个字段，单位是亿港元
+    const marketCapRaw = dataParts.length > 1 ? parseFloat(dataParts[dataParts.length - 1]) || 0 : 0;
     // 如果是亿港元，转换为完整数值
     const marketCap = marketCapRaw > 0 ? marketCapRaw * 100000000 : 0;
     const marketCapHKD = marketCapRaw > 0 ? marketCapRaw.toFixed(2) : null; // 亿港元字符串
+    const turnover = volume; // 成交量
     const turnover = parseFloat(dataParts[38]) || 0; // 成交量
     // 腾讯API返回的公司名称在第一个元素
     const apiCompanyName = dataParts[0] || '';
@@ -770,7 +773,6 @@ async function getStockDataFromAPI(stockCode: string) {
     };
   } catch (error) {
     console.error('获取股票数据失败:', error);
-    // 异常时尝试新浪API
   }
   
   // 腾讯API失败时，尝试新浪财经API
@@ -1104,28 +1106,41 @@ export async function POST(request: Request) {
         
         responseData.response = finalResponse;
         
+        // 构建detectedStocks，确保市值数据完整
         responseData.detectedStocks = stockDataResults.map((stock: any) => {
           // 计算市值（亿港元）
           let marketCapDisplay = 0;
+          let marketCapText = '暂无数据';
+          
           if (stock.marketCap && stock.marketCap > 0) {
             marketCapDisplay = stock.marketCap;
+            marketCapText = (stock.marketCap / 100000000).toFixed(2) + '亿港元';
           } else if (stock.marketCapHKD && stock.marketCapHKD > 0) {
-            // 如果是字符串格式的亿港元
+            // 如果是亿港元字符串
             const capValue = typeof stock.marketCapHKD === 'string' 
-              ? parseFloat(stock.marketCapHKD) * 100000000 
+              ? parseFloat(stock.marketCapHKD) 
               : stock.marketCapHKD;
-            marketCapDisplay = capValue;
+            marketCapDisplay = capValue * 100000000;
+            marketCapText = capValue.toFixed(2) + '亿港元';
           }
+          
+          console.log('=== 构建detectedStocks ===');
+          console.log('股票:', stock.code, stock.name);
+          console.log('市值:', marketCapText, '(raw:', marketCapDisplay, ')');
+          console.log('价格:', stock.price, '涨跌:', stock.change);
           
           return {
             code: stock.code,
             name: stock.name,
-            nameEn: stock.nameEn,
-            industry: stock.industry,
+            nameEn: stock.nameEn || '',
+            industry: stock.industry || '未知',
             price: stock.price || 0,
             change: stock.change || 0,
             changePct: stock.changePct || 0,
-            marketCap: marketCapDisplay
+            marketCap: marketCapDisplay,
+            marketCapText: marketCapText,
+            volume: stock.volume || 0,
+            turnover: stock.turnover || 0
           };
         });
       }
