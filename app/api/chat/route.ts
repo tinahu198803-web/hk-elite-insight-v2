@@ -953,7 +953,8 @@ export async function POST(request: Request) {
 公司名称: ${stock.name}
 英文名称: ${stock.nameEn}
 所属行业: ${stock.industry}
-${priceInfo}${connectStatus}
+          
+          
 ---\n`;
         });
         
@@ -1050,9 +1051,12 @@ ${priceInfo}${connectStatus}
       if (aiSaysNoData && stockDataResults.length > 0) {
           // AI回答错误，直接基于股票数据生成正确回复
           finalResponse = stockDataResults.map((stock: any) => {
+            const marketCapText = stock.marketCap && stock.marketCap > 0 
+              ? `\n流动市值: ${(stock.marketCap / 100000000).toFixed(2)}亿港元`
+              : '';
             const priceText = stock.price > 0 
-              ? `\n当前价格: ${stock.price}港元\n涨跌: ${stock.change > 0 ? '+' : ''}${stock.change}港元 (${stock.changePct}%)\n流动市值: ${(stock.marketCap / 100000000).toFixed(2)}亿港元`
-              : '\n当前价格: 暂无实时数据';
+              ? `\n当前价格: ${stock.price}港元\n涨跌: ${stock.change > 0 ? '+' : ''}${stock.change}港元 (${stock.changePct}%)${marketCapText}`
+              : `\n当前价格: 暂无实时数据${marketCapText}`;
             
             return `【股票信息查询结果】\n\n股票代码: ${stock.code}\n公司名称: ${stock.name}\n英文名称: ${stock.nameEn}\n所属行业: ${stock.industry}${priceText}\n\n如需更详细的分析，请告诉我具体想了解哪方面的信息。`;
           }).join('\n\n');
