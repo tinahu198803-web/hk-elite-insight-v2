@@ -554,6 +554,57 @@ async function getStockDataFromSina(stockCode: string) {
 
 // 从API获取股票数据（优先Finnhub获取市值，备用Yahoo/腾讯，始终返回本地数据）
 async function getStockDataFromAPI(stockCode: string) {
+  const normalizedCode = normalizeStockCode(stockCode);
+  
+  // 首先尝试调用内部/stock API（最可靠的方案）
+  console.log('=== 尝试内部股票数据API ===');
+  try {
+    const internalUrl = `/api/stock?code=${normalizedCode}`;
+    const internalResponse = await fetch(internalUrl, {
+      next: { revalidate: 0 }
+    });
+    
+    if (internalResponse.ok) {
+      const internalData = await internalResponse.json();
+      if (internalData.success) {
+        console.log('内部API成功! 来源:', internalData.source);
+        
+        let localInfo = null;
+        for (const [key, info] of Object.entries(COMBINED_STOCK_MAP)) {
+          if (key.toLowerCase() === normalizedCode.toLowerCase()) {
+            localInfo = { code: key, ...info };
+            break;
+          }
+        }
+        
+        return {
+          code: internalData.code?.toUpperCase() || normalizedCode.toUpperCase(),
+          name: localInfo?.name || internalData.name || normalizedCode,
+          nameEn: localInfo?.nameEn || internalData.nameEn || '',
+          industry: localInfo?.industry || internalData.industry || '未知',
+          price: internalData.price || 0,
+          change: internalData.change || 0,
+          changePct: typeof internalData.changePct === 'string' 
+            ? parseFloat(internalData.changePct) 
+            : (internalData.changePct || 0),
+          volume: internalData.volume || 0,
+          amount: 0,
+          marketCap: internalData.marketCap || 0,
+          marketCapHKD: internalData.marketCapHKD || null,
+          turnover: internalData.volume || 0,
+          source: internalData.source || 'internal',
+          warning: internalData.warning || null
+        };
+      }
+      console.log('内部API返回失败:', internalData.error);
+    }
+  } catch (internalError) {
+    console.log('内部API调用失败:', internalError);
+  }
+  
+  // 如果内部API失败，使用原来的外部API方案
+  console.log('=== 使用外部API ===');
+async function getStockDataFromAPI(stockCode: string) {
   // 首先获取本地映射的公司信息
   const normalizedCode = normalizeStockCode(stockCode);
   let localInfo = null;

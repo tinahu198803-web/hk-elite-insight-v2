@@ -1,334 +1,273 @@
+// 股票数据获取API - 支持多种数据源
+// 优先级: 腾讯财经 > Yahoo Finance > Finnhub > 本地数据库
+
 import { NextResponse } from 'next/server';
 
-// iTick API配置
-const ITICK_API_BASE = 'https://api.itick.org';
+// 数据源配置
+const DATA_SOURCES = {
+  // 腾讯财经API - 支持港股实时数据
+  tencent: {
+    baseUrl: 'https://qt.gtimg.cn/q=',
+    supports: ['price', 'change', 'volume', 'marketCap'],
+    format: 'hk{code}' // 例如: hk00700
+  },
+  // Yahoo Finance API - 免费无需API Key
+  yahoo: {
+    baseUrl: 'https://query1.finance.yahoo.com/v8/finance/chart/',
+    supports: ['price', 'change', 'volume'],
+    format: '{code}.HK' // 例如: 00700.HK
+  },
+  // Finnhub - 需要API Key
+  finnhub: {
+    baseUrl: 'https://finnhub.io/api/v1',
+    supports: ['price', 'change', 'marketCap', 'pe', 'analyst'],
+    format: '{code}.HK'
+  }
+};
 
-// 获取环境变量中的API Key
-function getApiKey(): string {
-  // 优先使用环境变量，否则使用默认值
-  return process.env.ITICK_API_KEY || '';
+// 本地数据库 - 作为最终备用
+const LOCAL_DB: Record<string, any> = {
+  '02659.hk': { name: '宝济药业-B', nameEn: 'Baoji Pharma', industry: '生物医药', basePrice: 18.5 },
+  '02575.hk': { name: '轩竹生物', nameEn: 'Xuanzhu Biotech', industry: '生物医药', basePrice: 12.3 },
+  '00700.hk': { name: '腾讯控股', nameEn: 'Tencent Holdings', industry: '互联网', basePrice: 380 },
+  '09988.hk': { name: '阿里巴巴-SW', nameEn: 'Alibaba Group', industry: '互联网', basePrice: 85 },
+  '03690.hk': { name: '美团-W', nameEn: 'Meituan', industry: '互联网', basePrice: 120 },
+  '01810.hk': { name: '小米集团-W', nameEn: 'Xiaomi Group', industry: '互联网', basePrice: 28 },
+  '02418.hk': { name: '京东集团-SW', nameEn: 'JD.com', industry: '互联网', basePrice: 130 },
+  '01877.hk': { name: '百济神州', nameEn: 'BeiGene', industry: '生物医药', basePrice: 145 },
+  '02269.hk': { name: '药明生物', nameEn: 'WuXi Biologics', industry: '生物医药', basePrice: 42 },
+  '09868.hk': { name: '小鹏汽车-W', nameEn: 'XPeng', industry: '新能源汽车', basePrice: 48 },
+  '09881.hk': { name: '理想汽车-W', nameEn: 'Li Auto', industry: '新能源汽车', basePrice: 95 },
+};
+
+// 获取环境变量
+const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY || '';
+const FINNHUB_API = 'https://finnhub.io/api/v1';
+
+// 标准化股票代码
+function normalizeCode(code: string): string {
+  return code.toLowerCase().replace('.hk', 'hk').replace(/^hk0+/, 'hk');
 }
 
-// 港股股票代码规范化
-function normalizeStockCode(code: string): string {
-  // 移除空格和特殊字符
-  let normalized = code.trim().toUpperCase();
-  
-  // 如果已经是完整格式 (如 00700.HK)，直接返回
-  if (normalized.endsWith('.HK')) {
-    return normalized;
-  }
-  
-  // 如果只是数字，添加 .hk 后缀
-  if (/^\d+$/.test(normalized)) {
-    return `${normalized}.hk`;
-  }
-  
-  return normalized;
-}
-
-// 从iTick API获取股票报价
-async function getStockQuoteFromITick(stockCode: string) {
-  const apiKey = getApiKey();
-  const normalizedCode = normalizeStockCode(stockCode);
-  
-  // 提取纯数字代码用于iTick
-  const numericCode = normalizedCode.replace(/\.hk$/i, '').replace(/^0+/, '') || normalizedCode;
-  
-  const url = `${ITICK_API_BASE}/stock/quotes?region=hk&code=${numericCode}`;
-  
-  const response = await fetch(url, {
-    headers: {
-      'accept': 'application/json',
-      'token': apiKey,
-    },
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`iTick API error: ${response.status} - ${errorText}`);
-  }
-
-  const data = await response.json();
-  return data;
-}
-
-// 从iTick API获取股票K线数据
-async function getStockKlineFromITick(stockCode: string, kType: number = 1) {
-  const apiKey = getApiKey();
-  const normalizedCode = normalizeStockCode(stockCode);
-  
-  // 提取纯数字代码
-  const numericCode = normalizedCode.replace(/\.hk$/i, '').replace(/^0+/, '') || normalizedCode;
-  
-  const url = `${ITICK_API_BASE}/stock/kline?region=hk&code=${numericCode}&kType=${kType}`;
-  
-  const response = await fetch(url, {
-    headers: {
-      'accept': 'application/json',
-      'token': apiKey,
-    },
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`iTick API error: ${response.status} - ${errorText}`);
-  }
-
-  const data = await response.json();
-  return data;
-}
-
-// 获取股票数据
-async function getStockData(stockCode: string) {
+// 从腾讯财经API获取数据
+async function getFromTencent(code: string): Promise<any> {
   try {
-    const normalizedCode = normalizeStockCode(stockCode);
-    const apiKey = getApiKey();
+    const codeNum = code.replace(/^hk0*/i, '').replace('.hk', '');
+    const url = `https://qt.gtimg.cn/q=hk${codeNum}`;
     
-    // 如果没有API Key，返回提示信息
-    if (!apiKey) {
-      // 备用：使用腾讯API
-      return await getStockDataFromTencent(normalizedCode);
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Referer': 'https://gu.qq.com'
+      },
+      next: { revalidate: 60 } // 缓存60秒
+    });
+
+    if (!response.ok) {
+      throw new Error(`腾讯API失败: ${response.status}`);
     }
+
+    const text = await response.text();
+    // 解析返回格式: v_hk00700="100~腾讯控股~00700~380.0~375.0~378.5~...~市值字段~..."
+    const match = text.match(/="([^"]+)"/);
+    if (!match) throw new Error('腾讯API数据格式错误');
+
+    const parts = match[1].split('~');
+    if (parts.length < 50) throw new Error('腾讯API数据不完整');
+
+    const price = parseFloat(parts[3]) || 0;
+    const yesterdayClose = parseFloat(parts[4]) || 0;
+    const change = price - yesterdayClose;
+    const changePct = yesterdayClose > 0 ? (change / yesterdayClose * 100) : 0;
     
-    // 尝试使用iTick API
-    try {
-      const quoteData = await getStockQuoteFromITick(normalizedCode);
-      
-      if (quoteData && quoteData.data && quoteData.data.length > 0) {
-        const stock = quoteData.data[0];
-        return {
-          code: normalizedCode,
-          name: stock.n || stock.name || normalizedCode,  // 股票名称
-          price: parseFloat(stock.p) || 0,               // 当前价格
-          change: parseFloat(stock.d) || 0,              // 涨跌额
-          changePct: parseFloat(stock.dp) || 0,          // 涨跌幅
-          volume: parseInt(stock.v) || 0,                // 成交量
-          amount: parseFloat(stock.a) || 0,              // 成交额
-          high: parseFloat(stock.h) || 0,                // 最高价
-          low: parseFloat(stock.l) || 0,                 // 最低价
-          open: parseFloat(stock.o) || 0,                // 开盘价
-          prevClose: parseFloat(stock.pc) || 0,           // 昨收价
-          timestamp: new Date().toISOString()
-        };
-      }
-    } catch (itickError) {
-      console.warn('iTick API failed, falling back to Tencent:', itickError);
-    }
-    
-    // iTick失败时使用备用方案
-    return await getStockDataFromTencent(normalizedCode);
-    
+    // 市值在最后一个字段 (单位：亿港元)
+    const marketCapRaw = parseFloat(parts[parts.length - 1]) || 0;
+    const marketCap = marketCapRaw > 0 ? marketCapRaw * 100000000 : 0;
+    const marketCapHKD = marketCapRaw > 0 ? marketCapRaw.toFixed(2) : null;
+
+    return {
+      success: true,
+      source: 'tencent',
+      code: code.includes('.hk') ? code : `${code}.hk`,
+      name: parts[1] || '',
+      price,
+      change,
+      changePct: changePct.toFixed(2),
+      volume: parseInt(parts[6]) || 0,
+      marketCap,
+      marketCapHKD,
+      marketCapText: marketCapRaw > 0 ? `${marketCapRaw.toFixed(2)}亿港元` : null,
+      timestamp: new Date().toISOString()
+    };
   } catch (error: any) {
-    console.error('获取股票数据失败:', error);
-    throw error;
+    console.log('腾讯API失败:', error.message);
+    return { success: false, error: error.message };
   }
 }
 
-// 备用：使用腾讯API获取股票数据
-async function getStockDataFromTencent(stockCode: string) {
-  const TENCENT_FINANCE_API = 'https://qt.gtimg.cn/q=';
-  const normalizedCode = normalizeStockCode(stockCode);
-  const url = `${TENCENT_FINANCE_API}${normalizedCode}`;
-  
-  const response = await fetch(url, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-    },
-  });
+// 从Yahoo Finance获取数据
+async function getFromYahoo(code: string): Promise<any> {
+  try {
+    const symbol = code.includes('.HK') ? code : `${code.toUpperCase().replace('.HK', '')}.HK`;
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`;
 
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
-  }
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0',
+        'Accept': 'application/json'
+      },
+      next: { revalidate: 60 }
+    });
 
-  const text = await response.text();
-  
-  // 解析返回数据
-  // 格式: "stock_id="name","price","change","change_pct","volume","amount","..." 
-  const match = text.match(/="([^"]+)"/);
-  
-  if (!match || !match[1]) {
-    throw new Error('股票数据解析失败');
-  }
-
-  const dataParts = match[1].split(',');
-  
-  if (dataParts.length < 10) {
-    throw new Error('股票数据格式错误');
-  }
-
-  return {
-    code: normalizedCode,
-    name: dataParts[0],                    // 股票名称
-    price: parseFloat(dataParts[1]),       // 当前价格
-    change: parseFloat(dataParts[2]),      // 涨跌额
-    changePct: parseFloat(dataParts[3]),  // 涨跌幅
-    volume: parseInt(dataParts[4]),        // 成交量
-    amount: parseFloat(dataParts[5]),      // 成交额
-    amplitude: parseFloat(dataParts[5]),   // 振幅
-    high: parseFloat(dataParts[33]),       // 最高价
-    low: parseFloat(dataParts[34]),        // 最低价
-    open: parseFloat(dataParts[36]),       // 开盘价
-    prevClose: parseFloat(dataParts[37]),  // 昨收价
-    turnoverRate: parseFloat(dataParts[38]), // 换手率
-    marketCap: parseFloat(dataParts[45]),  // 总市值
-    pe: parseFloat(dataParts[46]),         // 市盈率
-    timestamp: new Date().toISOString()
-  };
-}
-
-// 批量获取多只股票数据
-async function getMultipleStockData(stockCodes: string[]) {
-  const apiKey = getApiKey();
-  const results: any[] = [];
-  
-  // 尝试使用iTick批量查询
-  if (apiKey && stockCodes.length > 0) {
-    try {
-      // iTick支持逗号分隔批量查询
-      const codesParam = stockCodes.map(code => 
-        normalizeStockCode(code).replace(/\.hk$/i, '').replace(/^0+/, '')
-      ).join(',');
-      
-      const url = `${ITICK_API_BASE}/stock/quotes?region=hk&code=${codesParam}`;
-      
-      const response = await fetch(url, {
-        headers: {
-          'accept': 'application/json',
-          'token': apiKey,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.data && Array.isArray(data.data)) {
-          for (const stock of data.data) {
-            results.push({
-              code: `${stock.s}.hk`,
-              name: stock.n || stock.name || `${stock.s}.hk`,
-              price: parseFloat(stock.p) || 0,
-              change: parseFloat(stock.d) || 0,
-              changePct: parseFloat(stock.dp) || 0,
-              volume: parseInt(stock.v) || 0,
-              amount: parseFloat(stock.a) || 0,
-              high: parseFloat(stock.h) || 0,
-              low: parseFloat(stock.l) || 0,
-              open: parseFloat(stock.o) || 0,
-              prevClose: parseFloat(stock.pc) || 0,
-            });
-          }
-          return results;
-        }
-      }
-    } catch (itickError) {
-      console.warn('iTick batch query failed:', itickError);
+    if (!response.ok) {
+      throw new Error(`Yahoo API失败: ${response.status}`);
     }
-  }
-  
-  // 备用：使用腾讯API逐个查询
-  for (const stockCode of stockCodes) {
-    try {
-      const data = await getStockDataFromTencent(normalizeStockCode(stockCode));
-      results.push(data);
-    } catch (error) {
-      console.error(`Failed to get data for ${stockCode}:`, error);
-      results.push({
-        code: normalizeStockCode(stockCode),
-        name: '获取失败',
-        error: '数据获取失败'
-      });
-    }
-  }
 
-  return results;
+    const data = await response.json();
+    const result = data?.chart?.result?.[0];
+    
+    if (!result) throw new Error('Yahoo API无数据');
+
+    const meta = result.meta;
+    const quote = result.indicators?.quote?.[0];
+    
+    const price = meta.regularMarketPrice || 0;
+    const prevClose = meta.previousClose || meta.chartPreviousClose || 0;
+    const change = price - prevClose;
+    const changePct = prevClose > 0 ? (change / prevClose * 100) : 0;
+
+    return {
+      success: true,
+      source: 'yahoo',
+      code: code.includes('.hk') ? code : `${code}.hk`,
+      name: meta.shortName || meta.symbol,
+      price,
+      change,
+      changePct: changePct.toFixed(2),
+      volume: meta.regularMarketVolume || 0,
+      marketCap: meta.marketCap || 0,
+      marketCapText: meta.marketCap ? `${(meta.marketCap / 100000000).toFixed(2)}亿港元` : null,
+      timestamp: new Date().toISOString()
+    };
+  } catch (error: any) {
+    console.log('Yahoo API失败:', error.message);
+    return { success: false, error: error.message };
+  }
 }
 
-// GET请求 - 获取单只股票数据
+// 从Finnhub获取数据
+async function getFromFinnhub(code: string): Promise<any> {
+  if (!FINNHUB_API_KEY) {
+    return { success: false, error: '未配置Finnhub API Key' };
+  }
+
+  try {
+    // Finnhub港股格式
+    const symbol = code.replace('.HK', '').replace(/^0+/, '') + '.HK';
+    
+    const [quoteRes, profileRes] = await Promise.all([
+      fetch(`${FINNHUB_API}/quote?symbol=${symbol}&token=${FINNHUB_API_KEY}`, {
+        headers: { 'User-Agent': 'Mozilla/5.0' }
+      }),
+      fetch(`${FINNHUB_API}/stock/profile2?symbol=${symbol}&token=${FINNHUB_API_KEY}`, {
+        headers: { 'User-Agent': 'Mozilla/5.0' }
+      })
+    ]);
+
+    if (!quoteRes.ok) {
+      throw new Error(`Finnhub失败: ${quoteRes.status}`);
+    }
+
+    const quote = await quoteRes.json();
+    const profile = profileRes.ok ? await profileRes.json() : {};
+
+    const price = quote.c || 0;
+    const change = quote.d || 0;
+    const changePct = quote.dp || 0;
+
+    return {
+      success: true,
+      source: 'finnhub',
+      code: code.includes('.hk') ? code : `${code}.hk`,
+      name: profile.name || code,
+      price,
+      change,
+      changePct,
+      volume: quote.v || 0,
+      marketCap: profile.marketCapitalization || 0,
+      marketCapText: profile.marketCapitalization ? `${(profile.marketCapitalization / 100000000).toFixed(2)}亿港元` : null,
+      timestamp: new Date().toISOString()
+    };
+  } catch (error: any) {
+    console.log('Finnhub API失败:', error.message);
+    return { success: false, error: error.message };
+  }
+}
+
+// 主处理函数
 export async function GET(request: Request) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const stockCode = searchParams.get('code');
-    const codes = searchParams.get('codes'); // 批量查询用逗号分隔
+  const { searchParams } = new URL(request.url);
+  const code = searchParams.get('code')?.toLowerCase() || '';
+  
+  if (!code) {
+    return NextResponse.json({ 
+      success: false, 
+      error: '缺少股票代码参数' 
+    }, { status: 400 });
+  }
 
-    // 批量查询
-    if (codes) {
-      const stockList = codes.split(',').map((c: string) => c.trim()).filter((c: string) => c);
-      const results = await getMultipleStockData(stockList);
-      
-      return NextResponse.json({
-        success: true,
-        data: results,
-        timestamp: new Date().toISOString()
-      });
+  console.log('========== 股票数据查询 ==========');
+  console.log('股票代码:', code);
+
+  // 按优先级尝试各数据源
+  const sources = [
+    { name: '腾讯财经', fn: () => getFromTencent(code) },
+    { name: 'Yahoo Finance', fn: () => getFromYahoo(code) },
+    { name: 'Finnhub', fn: () => getFromFinnhub(code) }
+  ];
+
+  let lastError = '';
+  
+  for (const source of sources) {
+    console.log(`尝试 ${source.name}...`);
+    const result = await source.fn();
+    
+    if (result.success) {
+      console.log(`${source.name} 成功!`);
+      return NextResponse.json(result);
     }
+    
+    lastError = result.error || '未知错误';
+    console.log(`${source.name} 失败:`, lastError);
+  }
 
-    // 单只股票查询
-    if (!stockCode) {
-      return NextResponse.json({
-        success: false,
-        error: '请提供股票代码 (如: 00700.hk 或 700)'
-      }, { status: 400 });
-    }
-
-    const stockData = await getStockData(stockCode);
-
+  // 所有API失败，使用本地数据
+  console.log('所有API失败，使用本地数据');
+  const normalizedCode = normalizeCode(code);
+  const localData = LOCAL_DB[normalizedCode] || LOCAL_DB[code] || LOCAL_DB[`hk${code.replace(/\D/g, '')}`];
+  
+  if (localData) {
     return NextResponse.json({
       success: true,
-      data: stockData,
+      source: 'local',
+      code: code.includes('.hk') ? code : `${code}.hk`,
+      name: localData.name,
+      nameEn: localData.nameEn,
+      industry: localData.industry,
+      price: localData.basePrice || 0,
+      change: 0,
+      changePct: 0,
+      volume: 0,
+      marketCap: 0,
+      marketCapText: null,
+      warning: 'API均不可用，数据为参考值',
       timestamp: new Date().toISOString()
     });
-
-  } catch (error: any) {
-    console.error('Stock API error:', error);
-    
-    return NextResponse.json({
-      success: false,
-      error: error.message || '获取股票数据失败',
-      message: '请检查股票代码是否正确，港股代码格式如: 00700.hk 或 700'
-    }, { status: 500 });
   }
-}
 
-// POST请求 - 支持批量查询
-export async function POST(request: Request) {
-  try {
-    const body = await request.json();
-    const { stockCode, stockCodes } = body;
-
-    // 批量查询
-    if (stockCodes && Array.isArray(stockCodes)) {
-      const results = await getMultipleStockData(stockCodes);
-      
-      return NextResponse.json({
-        success: true,
-        data: results,
-        timestamp: new Date().toISOString()
-      });
-    }
-
-    // 单只股票查询
-    if (!stockCode) {
-      return NextResponse.json({
-        success: false,
-        error: '请提供股票代码'
-      }, { status: 400 });
-    }
-
-    const stockData = await getStockData(stockCode);
-
-    return NextResponse.json({
-      success: true,
-      data: stockData,
-      timestamp: new Date().toISOString()
-    });
-
-  } catch (error: any) {
-    console.error('Stock API error:', error);
-    
-    return NextResponse.json({
-      success: false,
-      error: error.message || '获取股票数据失败',
-      message: '请检查股票代码是否正确，港股代码格式如: 00700.hk 或 700'
-    }, { status: 500 });
-  }
+  return NextResponse.json({
+    success: false,
+    error: `所有数据源均不可用: ${lastError}`,
+    code: code
+  }, { status: 500 });
 }
