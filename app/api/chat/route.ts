@@ -593,6 +593,12 @@ async function getStockDataFromAPI(stockCode: string) {
         dividend: finnhubResult.dividend,
         week52High: finnhubResult.week52High,
         week52Low: finnhubResult.week52Low,
+        beta: finnhubResult.beta,
+        pe: finnhubResult.pe,
+        eps: finnhubResult.eps,
+        dividend: finnhubResult.dividend,
+        week52High: finnhubResult.week52High,
+        week52Low: finnhubResult.week52Low,
         turnover: finnhubResult.volume,
         source: 'finnhub'
       };
@@ -1069,16 +1075,30 @@ export async function POST(request: Request) {
         
         responseData.response = finalResponse;
         
-        responseData.detectedStocks = stockDataResults.map((stock: any) => ({
-          code: stock.code,
-          name: stock.name,
-          nameEn: stock.nameEn,
-          industry: stock.industry,
-          price: stock.price || 0,
-          change: stock.change || 0,
-          changePct: stock.changePct || 0,
-          marketCap: stock.marketCap || 0
-        }));
+        responseData.detectedStocks = stockDataResults.map((stock: any) => {
+          // 计算市值（亿港元）
+          let marketCapDisplay = 0;
+          if (stock.marketCap && stock.marketCap > 0) {
+            marketCapDisplay = stock.marketCap;
+          } else if (stock.marketCapHKD && stock.marketCapHKD > 0) {
+            // 如果是字符串格式的亿港元
+            const capValue = typeof stock.marketCapHKD === 'string' 
+              ? parseFloat(stock.marketCapHKD) * 100000000 
+              : stock.marketCapHKD;
+            marketCapDisplay = capValue;
+          }
+          
+          return {
+            code: stock.code,
+            name: stock.name,
+            nameEn: stock.nameEn,
+            industry: stock.industry,
+            price: stock.price || 0,
+            change: stock.change || 0,
+            changePct: stock.changePct || 0,
+            marketCap: marketCapDisplay
+          };
+        });
       }
 
       return NextResponse.json({
