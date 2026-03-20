@@ -80,10 +80,17 @@ async function getFromTencent(code: string): Promise<any> {
     const change = price - yesterdayClose;
     const changePct = yesterdayClose > 0 ? (change / yesterdayClose * 100) : 0;
     
-    // 市值在最后一个字段 (单位：亿港元)
-    const marketCapRaw = parseFloat(parts[parts.length - 1]) || 0;
-    const marketCap = marketCapRaw > 0 ? marketCapRaw * 100000000 : 0;
-    const marketCapHKD = marketCapRaw > 0 ? marketCapRaw.toFixed(2) : null;
+    // 市值数据在parts[45]位置 (腾讯API港股数据格式)
+    // parts[45] 单位已经是港元，需要判断是否有效
+    const marketCapField = parts[45] ? parseFloat(parts[45]) : 0;
+    // 如果数值较小(<10000亿)，说明单位是亿港元，直接使用
+    // 如果数值较大(>10000亿)，说明需要除以100
+    let marketCapHKD = marketCapField;
+    if (marketCapHKD > 100000000) {
+      // 原始数据可能以分为单位
+      marketCapHKD = marketCapHKD / 100;
+    }
+    const marketCap = marketCapHKD > 0 ? marketCapHKD * 100000000 : 0;
 
     return {
       success: true,
