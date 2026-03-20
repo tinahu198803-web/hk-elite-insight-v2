@@ -986,13 +986,22 @@ export async function POST(request: Request) {
             ? `\n港股通状态: ${stock.stockConnectStatus} ${stock.connectType ? '(' + stock.connectType + ')' : ''}\n恒生综合指数类型: ${stock.hsciType || '未知'}\n纳入时间: ${stock.inclusionDate || '未知'}`
             : '';
             
-          stockInfoContext += `股票代码: ${stock.code}
-公司名称: ${stock.name}
-英文名称: ${stock.nameEn}
-所属行业: ${stock.industry}
+          // 计算市值和成交量
+          let marketCapDisplay = '暂无数据';
+          if (stock.marketCap && stock.marketCap > 0) {
+            marketCapDisplay = (stock.marketCap / 100000000).toFixed(2) + '亿港元';
+          } else if (stock.marketCapHKD && stock.marketCapHKD > 0) {
+            marketCapDisplay = stock.marketCapHKD + '亿港元';
+          }
           
+          let volumeDisplay = '暂无数据';
+          if (stock.volume && stock.volume > 0) {
+            volumeDisplay = (stock.volume / 1000000).toFixed(2) + '万股';
+          } else if (stock.turnover && stock.turnover > 0) {
+            volumeDisplay = (stock.turnover / 1000000).toFixed(2) + '万股';
+          }
           
----\n`;
+          stockInfoContext += `股票代码: ${stock.code}\n公司名称: ${stock.name}\n英文名称: ${stock.nameEn}\n所属行业: ${stock.industry}\n${priceInfo}\n【关键数据】流动市值: ${marketCapDisplay}\n成交量: ${volumeDisplay}\n${connectStatus}\n---\n`;
         });
         
         stockInfoContext += `【强制规则 - 违反将被严厉处罚】\n`;
