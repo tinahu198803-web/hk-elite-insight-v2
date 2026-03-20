@@ -604,9 +604,6 @@ async function getStockDataFromAPI(stockCode: string) {
   
   // 如果内部API失败，使用原来的外部API方案
   console.log('=== 使用外部API ===');
-async function getStockDataFromAPI(stockCode: string) {
-  // 首先获取本地映射的公司信息
-  const normalizedCode = normalizeStockCode(stockCode);
   let localInfo = null;
   for (const [key, info] of Object.entries(COMBINED_STOCK_MAP)) {
     if (key.toLowerCase() === normalizedCode.toLowerCase()) {
