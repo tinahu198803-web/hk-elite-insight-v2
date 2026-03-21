@@ -1045,6 +1045,7 @@ export async function POST(request: Request) {
             marketCapDisplay = (stock.marketCap / 100000000).toFixed(2) + '亿港元';
           } else if (stock.marketCapHKD && stock.marketCapHKD > 0) {
             marketCapDisplay = stock.marketCapHKD + '亿港元';
+          }
           
           let volumeDisplay = '暂无数据';
           if (stock.volume && stock.volume > 0) {
