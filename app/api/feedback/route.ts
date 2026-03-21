@@ -129,7 +129,7 @@ export async function GET(request: Request) {
       // 返回问题分析（用户反馈不准确的问题）
       const problemFeedback = Array.from(feedbackStore.values())
         .filter(f => f.rating === 'inaccurate' || f.rating === 'not_helpful')
-        .sort((a, b) => new Date(b.timestamp!).getTime() - newDate(a.timestamp!).getTime())
+        .sort((a, b) => new Date(b.timestamp!).getTime() - new Date(a.timestamp!).getTime())
         .slice(0, 20);
 
       return NextResponse.json({
