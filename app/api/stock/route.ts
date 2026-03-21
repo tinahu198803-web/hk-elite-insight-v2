@@ -1,4 +1,4 @@
-// 港股实时股票数据API - 东方财富主数据源
+// 港股实时股票数据API v2.1 - 东方财富主数据源
 import { NextResponse } from 'next/server';
 
 // 标准化股票代码
