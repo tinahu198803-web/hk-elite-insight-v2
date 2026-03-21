@@ -1036,11 +1036,11 @@ export async function POST(request: Request) {
             
           // 计算市值和成交量
           let marketCapDisplay = '暂无数据';
-          if (stock.marketCap && stock.marketCap > 0) {
+          if (stock.marketCapText) {
+            marketCapDisplay = stock.marketCapText;
+          } else if (stock.marketCap && stock.marketCap > 0) {
             marketCapDisplay = (stock.marketCap / 100000000).toFixed(2) + '亿港元';
           } else if (stock.marketCapHKD && stock.marketCapHKD > 0) {
-            marketCapDisplay = stock.marketCapHKD + '亿港元';
-          }
           
           let volumeDisplay = '暂无数据';
           if (stock.volume && stock.volume > 0) {
