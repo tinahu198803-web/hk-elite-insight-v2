@@ -103,7 +103,7 @@ async function getFromTencent(code: string): Promise<any> {
       volume: parseInt(parts[6]) || 0,
       marketCap,
       marketCapHKD,
-      marketCapText: marketCapRaw > 0 ? `${marketCapRaw.toFixed(2)}亿港元` : null,
+      marketCapText: marketCapHKD > 0 ? `${parseFloat(marketCapHKD.toString()).toFixed(2)}亿港元` : null,
       timestamp: new Date().toISOString()
     };
   } catch (error: any) {
