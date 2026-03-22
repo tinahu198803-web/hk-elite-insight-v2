@@ -311,6 +311,7 @@ ${priceInfo}
       aiResponse = `您好！我是${expert.name}。请问有什么可以帮您？`;
     }
 
+    // 返回给前端的完整股票数据
     const responseData: any = {
       expert: expert.name,
       response: aiResponse,
@@ -321,7 +322,12 @@ ${priceInfo}
         nameEn: stock.nameEn,
         industry: stock.industry,
         price: stock.price || 0,
-        marketCapText: stock.floatMarketCapText || stock.marketCapText || null,
+        change: stock.change || 0,
+        changePct: stock.changePct || 0,
+        marketCap: stock.marketCap || 0,
+        marketCapText: stock.marketCapText || null,
+        floatMarketCapText: stock.floatMarketCapText || null,
+        turnover: stock.turnover || 0,
         source: stock.source
       }))
     };
