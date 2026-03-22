@@ -43,7 +43,7 @@ const AZURE_OPENAI_DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o-m
 // 构建完整的API URL
 function getAzureOpenAIUrl(): string {
   const baseUrl = AZURE_OPENAI_ENDPOINT.replace(/\/$/, '');
-  return `${baseUrl}/openai/deployments/${AZURE_OPENAI_DEPLOYMENT}/chat/completions?api-version=2024-02-01-preview`;
+  return `${baseUrl}/openai/deployments/${AZURE_OPENAI_DEPLOYMENT}/chat/completions?api-version=2025-01-01-preview`;
 }
 
 // 检查API是否已配置
