@@ -179,6 +179,7 @@ async function callAzureOpenAI(messages: any[], temperature: number = 0.7, maxTo
   console.log('=== Azure OpenAI API 调用 ===');
   console.log('URL:', apiUrl);
   console.log('Deployment:', AZURE_OPENAI_DEPLOYMENT);
+  console.log('API_KEY长度:', AZURE_OPENAI_API_KEY.length);
   console.log('Temperature:', temperature);
   console.log('MaxTokens:', finalMaxTokens);
   console.log('Messages count:', messages.length);
