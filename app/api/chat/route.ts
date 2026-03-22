@@ -35,19 +35,18 @@ function getStockConnectInfo(stockCode: string): any {
   return null;
 }
 
-// Azure OpenAI 配置
-const AZURE_OPENAI_ENDPOINT = process.env.AZURE_OPENAI_ENDPOINT || '';
+// Azure OpenAI 配置 - 使用硬编码值确保正确
+const AZURE_OPENAI_ENDPOINT = process.env.AZURE_OPENAI_ENDPOINT || 'https://ai-tinahu1988037211ai271000434028.cognitiveservices.azure.com';
 const AZURE_OPENAI_API_KEY = process.env.AZURE_OPENAI_API_KEY || '';
-const AZURE_OPENAI_DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o';
+const AZURE_OPENAI_DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o-mini-2';
 
 // 构建完整的API URL
 function getAzureOpenAIUrl(): string {
-  // 移除末尾斜杠
   const baseUrl = AZURE_OPENAI_ENDPOINT.replace(/\/$/, '');
-  return `${baseUrl}/openai/deployments/${AZURE_OPENAI_DEPLOYMENT}/chat/completions?api-version=2024-02-01-preview`;
+  return `${baseUrl}/openai/deployments/${AZURE_OPENAI_DEPLOYMENT}/chat/completions?api-version=2025-01-01-preview`;
 }
 
-// 检查API是否已配置
+// 检查API是否已配置（密钥必须存在）
 const isAzureConfigured = AZURE_OPENAI_ENDPOINT && AZURE_OPENAI_API_KEY;
 
 type StockInfo = {
