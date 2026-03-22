@@ -1,4 +1,4 @@
-// 简化版chat API - 支持Azure OpenAI API
+// 简化版chat API - 完善的错误处理和fallback机制
 import { NextResponse } from 'next/server';
 import expertsConfig from '../../config/experts.json';
 import stocksConfig from '../../config/hk-stocks.json';
@@ -35,19 +35,19 @@ function getStockConnectInfo(stockCode: string): any {
   return null;
 }
 
-// Azure OpenAI 配置 - 使用环境变量或默认值
+// Azure OpenAI 配置
 const AZURE_OPENAI_ENDPOINT = process.env.AZURE_OPENAI_ENDPOINT || '';
 const AZURE_OPENAI_API_KEY = process.env.AZURE_OPENAI_API_KEY || '';
 const AZURE_OPENAI_DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o-mini-2';
 
-// 构建完整的API URL - 使用正确的API版本
+// 构建完整的API URL
 function getAzureOpenAIUrl(): string {
   const baseUrl = AZURE_OPENAI_ENDPOINT.replace(/\/$/, '');
   return `${baseUrl}/openai/deployments/${AZURE_OPENAI_DEPLOYMENT}/chat/completions?api-version=2024-02-01-preview`;
 }
 
 // 检查API是否已配置
-const isAzureConfigured = AZURE_OPENAI_ENDPOINT && AZURE_OPENAI_API_KEY;
+const isAzureConfigured = Boolean(AZURE_OPENAI_ENDPOINT && AZURE_OPENAI_API_KEY);
 
 type StockInfo = {
   name: string;
@@ -165,9 +165,9 @@ async function getStockDataFromAPI(stockCode: string): Promise<any> {
   return null;
 }
 
-async function callAzureOpenAI(messages: any[], temperature: number = 0.7, maxTokens: number = 2000) {
+async function callAzureOpenAI(messages: any[], temperature: number = 0.7, maxTokens: number = 2000): Promise<string> {
   const apiUrl = getAzureOpenAIUrl();
-  const finalMaxTokens = Math.max(maxTokens, 2000);
+  const finalMaxTokens = Math.max(maxTokens, 4000);
   
   console.log('调用Azure OpenAI:', apiUrl);
   console.log('Deployment:', AZURE_OPENAI_DEPLOYMENT);
@@ -187,7 +187,6 @@ async function callAzureOpenAI(messages: any[], temperature: number = 0.7, maxTo
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('Azure OpenAI错误:', response.status, errorText);
     throw new Error(`Azure OpenAI API error: ${response.status} - ${errorText}`);
   }
 
@@ -237,18 +236,59 @@ ${priceText}
 流动市值: ${marketCapText}${connectInfo}`;
 }
 
-function generateFallbackResponse(message: string, stockData: any[], expert: any): string {
+function generateExpertResponse(message: string, stockData: any[], expert: any): string {
   let response = `您好！我是${expert.name}。\n\n`;
   
+  // 添加股票信息
   if (stockData.length > 0) {
     response += `根据您的查询，为您整理以下股票信息：\n\n`;
     
     stockData.forEach(stock => {
       response += generateStockCardText(stock) + '\n\n';
     });
+    
+    // 根据专家类型添加专业分析
+    if (expert.id === 'index-inclusion') {
+      response += `【指数纳入分析】\n\n`;
+      stockData.forEach(stock => {
+        const marketCapBillions = stock.marketCap / 100000000 / 1.03;
+        
+        response += `关于 ${stock.name} 的指数纳入可能性：\n`;
+        
+        if (marketCapBillions >= 300) {
+          response += `✅ 总市值约${marketCapBillions.toFixed(0)}亿港元，符合MSCI纳入的基本条件\n`;
+          response += `✅ 建议关注恒生综合指数成分股的纳入时间窗口\n`;
+          response += `✅ 做好流动性准备，确保日均成交额达标\n\n`;
+        } else if (marketCapBillions >= 50) {
+          response += `⚠️ 总市值约${marketCapBillions.toFixed(0)}亿港元，可能需要等待一段时间\n`;
+          response += `💡 建议提升股票流动性，增加机构投资者关注\n`;
+          response += `💡 关注港股通资格的获取\n\n`;
+        } else {
+          response += `⏳ 当前市值较小，短期内纳入大型指数的可能性较低\n`;
+          response += `💡 建议先专注于提升公司业绩和市值\n\n`;
+        }
+      });
+    } else if (expert.id === 'health-check') {
+      response += `【港股通入通可行性分析】\n\n`;
+      stockData.forEach(stock => {
+        const marketCapBillions = stock.marketCap / 100000000 / 1.03;
+        
+        response += `${stock.name} 入通分析：\n`;
+        response += marketCapBillions >= 50 
+          ? `✅ 市值条件：满足（${marketCapBillions.toFixed(0)}亿港元）\n`
+          : `❌ 市值条件：需提升（当前${marketCapBillions.toFixed(0)}亿港元，需50亿港元以上）\n`;
+        
+        if (stock.stockConnectStatus === '已纳入') {
+          response += `🎉 港股通状态：已纳入\n`;
+        } else {
+          response += `📋 港股通状态：待评估\n`;
+        }
+        response += '\n';
+      });
+    }
   }
   
-  response += `${expert.description}\n\n请问您想了解哪方面的详细信息？`;
+  response += `请问您想了解哪方面的详细信息？`;
   
   return response;
 }
@@ -256,7 +296,10 @@ function generateFallbackResponse(message: string, stockData: any[], expert: any
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { expertId, message, history, companyName, projectContent } = body;
+    const { expertId, message, history } = body;
+    
+    console.log('收到请求:', { expertId, message: message?.substring(0, 50) });
+    console.log('Azure配置状态:', { isAzureConfigured, endpoint: AZURE_OPENAI_ENDPOINT ? '已设置' : '未设置' });
     
     if (!message || !expertId) {
       return NextResponse.json({ error: '缺少必要参数' }, { status: 400 });
@@ -267,9 +310,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '专家不存在' }, { status: 404 });
     }
 
-    console.log('处理消息:', message);
-    console.log('API配置状态:', isAzureConfigured ? '已配置' : '未配置');
-    
+    // 提取股票代码
     const stockCodes = extractStockCodes(message);
     let stockDataResults: any[] = [];
     
@@ -278,70 +319,75 @@ export async function POST(request: Request) {
       const stockDataPromises = uniqueCodes.map(code => getStockDataFromAPI(code));
       const stockResults = await Promise.all(stockDataPromises);
       stockDataResults = stockResults.filter(s => s !== null);
+      
+      console.log('获取到股票数据:', stockDataResults.length, '条');
     }
     
     let aiResponse = '';
     
+    // 尝试调用Azure OpenAI
     if (isAzureConfigured) {
-      let stockInfoContext = '';
-      
-      if (stockDataResults.length > 0) {
-        stockInfoContext = `\n\n【股票数据查询结果】\n`;
-        stockDataResults.forEach(stock => {
-          const priceInfo = stock.price > 0 
-            ? `当前价: ${stock.price}港元, 涨跌: ${stock.change > 0 ? '+' : ''}${stock.change}港元 (${stock.changePct}%)`
-            : '当前价格: 暂无实时数据';
-          
-          let marketCapDisplay = stock.floatMarketCapText || stock.marketCapText || '暂无数据';
-          
-          const connectStatus = stock.stockConnectStatus 
-            ? `\n港股通状态: ${stock.stockConnectStatus}`
-            : '';
+      try {
+        let stockInfoContext = '';
+        
+        if (stockDataResults.length > 0) {
+          stockInfoContext = `\n\n【股票数据查询结果】\n`;
+          stockDataResults.forEach(stock => {
+            const priceInfo = stock.price > 0 
+              ? `当前价: ${stock.price}港元, 涨跌: ${stock.change > 0 ? '+' : ''}${stock.change}港元 (${stock.changePct}%)`
+              : '当前价格: 暂无实时数据';
             
-          stockInfoContext += `股票代码: ${stock.code}
+            let marketCapDisplay = stock.floatMarketCapText || stock.marketCapText || '暂无数据';
+            
+            stockInfoContext += `股票代码: ${stock.code}
 公司名称: ${stock.name}
 英文名称: ${stock.nameEn}
 所属行业: ${stock.industry}
 ${priceInfo}
-流动市值: ${marketCapDisplay}${connectStatus}
+流动市值: ${marketCapDisplay}
 ---
 `;
-        });
-      }
+          });
+        }
 
-      let systemPrompt = expert.systemPrompt || '';
-      if (stockInfoContext) {
-        systemPrompt += stockInfoContext;
-      }
-      
-      systemPrompt += `\n\n【专家身份】\n你是 ${expert.name}。${expert.description || ''}\n请用专业的口吻回答用户的问题。`;
+        let systemPrompt = expert.systemPrompt || '';
+        if (stockInfoContext) {
+          systemPrompt += stockInfoContext;
+        }
+        
+        systemPrompt += `\n\n【专家身份】\n你是 ${expert.name}。${expert.description || ''}\n请用专业的口吻回答用户的问题。`;
 
-      const messages: any[] = [
-        { role: 'system', content: systemPrompt }
-      ];
+        const messages: any[] = [
+          { role: 'system', content: systemPrompt }
+        ];
 
-      if (history && Array.isArray(history)) {
-        const recentHistory = history.slice(-10);
-        recentHistory.forEach((msg: any) => {
-          messages.push({ role: msg.role, content: msg.content });
-        });
-      }
+        if (history && Array.isArray(history)) {
+          const recentHistory = history.slice(-10);
+          recentHistory.forEach((msg: any) => {
+            messages.push({ role: msg.role, content: msg.content });
+          });
+        }
 
-      messages.push({ role: 'user', content: message });
+        messages.push({ role: 'user', content: message });
 
-      try {
         aiResponse = await callAzureOpenAI(
           messages,
           expert.temperature || 0.7,
           expert.maxTokens || 2000
         );
+        
+        console.log('Azure OpenAI响应成功');
       } catch (aiError: any) {
-        console.error('AI调用失败:', aiError.message);
+        console.error('AI调用失败，使用fallback:', aiError.message);
+        // AI调用失败，使用fallback回复
+        aiResponse = '';
       }
     }
     
+    // 如果没有AI回复，使用fallback
     if (!aiResponse || aiResponse.trim() === '') {
-      aiResponse = generateFallbackResponse(message, stockDataResults, expert);
+      console.log('使用fallback回复');
+      aiResponse = generateExpertResponse(message, stockDataResults, expert);
     }
 
     const responseData: any = {
@@ -364,9 +410,14 @@ ${priceInfo}
       }))
     };
 
+    console.log('返回响应成功');
     return NextResponse.json(responseData);
   } catch (error: any) {
     console.error('处理请求失败:', error);
-    return NextResponse.json({ error: error.message || '服务器错误' }, { status: 500 });
+    return NextResponse.json({ 
+      success: false,
+      error: error.message || '服务器错误',
+      response: '抱歉，服务暂时不可用。请稍后重试。'
+    }, { status: 500 });
   }
 }
