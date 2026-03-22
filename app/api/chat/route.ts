@@ -49,6 +49,13 @@ function getAzureOpenAIUrl(): string {
 // 检查API是否已配置
 const isAzureConfigured = Boolean(AZURE_OPENAI_ENDPOINT && AZURE_OPENAI_API_KEY);
 
+console.log('=== Azure OpenAI 配置检查 ===');
+console.log('ENDPOINT:', AZURE_OPENAI_ENDPOINT ? '已设置' : '未设置');
+console.log('API_KEY:', AZURE_OPENAI_API_KEY ? '已设置' : '未设置');
+console.log('DEPLOYMENT:', AZURE_OPENAI_DEPLOYMENT);
+console.log('isAzureConfigured:', isAzureConfigured);
+console.log('=== 配置检查完成 ===');
+
 type StockInfo = {
   name: string;
   nameEn: string;
@@ -169,8 +176,12 @@ async function callAzureOpenAI(messages: any[], temperature: number = 0.7, maxTo
   const apiUrl = getAzureOpenAIUrl();
   const finalMaxTokens = Math.max(maxTokens, 4000);
   
-  console.log('调用Azure OpenAI:', apiUrl);
+  console.log('=== Azure OpenAI API 调用 ===');
+  console.log('URL:', apiUrl);
   console.log('Deployment:', AZURE_OPENAI_DEPLOYMENT);
+  console.log('Temperature:', temperature);
+  console.log('MaxTokens:', finalMaxTokens);
+  console.log('Messages count:', messages.length);
   
   const response = await fetch(apiUrl, {
     method: 'POST',
