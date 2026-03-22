@@ -35,18 +35,18 @@ function getStockConnectInfo(stockCode: string): any {
   return null;
 }
 
-// Azure OpenAI 配置 - 使用硬编码值确保正确
-const AZURE_OPENAI_ENDPOINT = process.env.AZURE_OPENAI_ENDPOINT || 'https://ai-tinahu1988037211ai271000434028.cognitiveservices.azure.com';
+// Azure OpenAI 配置 - 使用环境变量或默认值
+const AZURE_OPENAI_ENDPOINT = process.env.AZURE_OPENAI_ENDPOINT || '';
 const AZURE_OPENAI_API_KEY = process.env.AZURE_OPENAI_API_KEY || '';
 const AZURE_OPENAI_DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o-mini-2';
 
-// 构建完整的API URL
+// 构建完整的API URL - 使用正确的API版本
 function getAzureOpenAIUrl(): string {
   const baseUrl = AZURE_OPENAI_ENDPOINT.replace(/\/$/, '');
-  return `${baseUrl}/openai/deployments/${AZURE_OPENAI_DEPLOYMENT}/chat/completions?api-version=2025-01-01-preview`;
+  return `${baseUrl}/openai/deployments/${AZURE_OPENAI_DEPLOYMENT}/chat/completions?api-version=2024-02-01-preview`;
 }
 
-// 检查API是否已配置（密钥必须存在）
+// 检查API是否已配置
 const isAzureConfigured = AZURE_OPENAI_ENDPOINT && AZURE_OPENAI_API_KEY;
 
 type StockInfo = {
@@ -167,9 +167,10 @@ async function getStockDataFromAPI(stockCode: string): Promise<any> {
 
 async function callAzureOpenAI(messages: any[], temperature: number = 0.7, maxTokens: number = 2000) {
   const apiUrl = getAzureOpenAIUrl();
-  const finalMaxTokens = Math.max(maxTokens, 4000);
+  const finalMaxTokens = Math.max(maxTokens, 2000);
   
   console.log('调用Azure OpenAI:', apiUrl);
+  console.log('Deployment:', AZURE_OPENAI_DEPLOYMENT);
   
   const response = await fetch(apiUrl, {
     method: 'POST',
@@ -186,6 +187,7 @@ async function callAzureOpenAI(messages: any[], temperature: number = 0.7, maxTo
 
   if (!response.ok) {
     const errorText = await response.text();
+    console.error('Azure OpenAI错误:', response.status, errorText);
     throw new Error(`Azure OpenAI API error: ${response.status} - ${errorText}`);
   }
 
@@ -266,6 +268,7 @@ export async function POST(request: Request) {
     }
 
     console.log('处理消息:', message);
+    console.log('API配置状态:', isAzureConfigured ? '已配置' : '未配置');
     
     const stockCodes = extractStockCodes(message);
     let stockDataResults: any[] = [];
