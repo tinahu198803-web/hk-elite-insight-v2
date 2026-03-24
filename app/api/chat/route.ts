@@ -38,7 +38,7 @@ function getStockConnectInfo(stockCode: string): any {
 // Azure OpenAI 配置
 const AZURE_OPENAI_ENDPOINT = process.env.AZURE_OPENAI_ENDPOINT || '';
 const AZURE_OPENAI_API_KEY = process.env.AZURE_OPENAI_API_KEY || '';
-const AZURE_OPENAI_DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o-mini-2';
+const AZURE_OPENAI_DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o-mini';
 
 // 构建完整的API URL
 function getAzureOpenAIUrl(): string {
@@ -303,6 +303,31 @@ function generateExpertResponse(message: string, stockData: any[], expert: any):
   response += `请问您想了解哪方面的详细信息？`;
   
   return response;
+}
+
+// GET 端点用于诊断
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const diagnose = searchParams.get('diagnose');
+  
+  if (diagnose === '1') {
+    // 诊断模式 - 不暴露完整密钥
+    const maskedKey = AZURE_OPENAI_API_KEY 
+      ? AZURE_OPENAI_API_KEY.substring(0, 4) + '...' + AZURE_OPENAI_API_KEY.substring(AZURE_OPENAI_API_KEY.length - 4)
+      : '未设置';
+    
+    return NextResponse.json({
+      diagnose: true,
+      endpoint: AZURE_OPENAI_ENDPOINT || '未设置',
+      apiKey: maskedKey,
+      apiKeyLength: AZURE_OPENAI_API_KEY?.length || 0,
+      deployment: AZURE_OPENAI_DEPLOYMENT,
+      isConfigured: isAzureConfigured,
+      buildUrl: getAzureOpenAIUrl()
+    });
+  }
+  
+  return NextResponse.json({ message: 'Chat API - Use POST method' });
 }
 
 export async function POST(request: Request) {
