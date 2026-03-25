@@ -311,16 +311,22 @@ export async function GET(request: Request) {
   const diagnose = searchParams.get('diagnose');
   
   if (diagnose === '1') {
-    // 诊断模式 - 不暴露完整密钥
-    const maskedKey = AZURE_OPENAI_API_KEY 
-      ? AZURE_OPENAI_API_KEY.substring(0, 4) + '...' + AZURE_OPENAI_API_KEY.substring(AZURE_OPENAI_API_KEY.length - 4)
-      : '未设置';
+    // 诊断模式
+    const keyFirst5 = AZURE_OPENAI_API_KEY?.substring(0, 5) || '';
+    const keyLast5 = AZURE_OPENAI_API_KEY?.substring(AZURE_OPENAI_API_KEY.length - 5) || '';
+    const expectedFirst5 = '4rNnn';
+    const expectedLast5 = 'uHW1';
+    const isKeyCorrect = keyFirst5 === expectedFirst5 && keyLast5 === expectedLast5;
     
     return NextResponse.json({
       diagnose: true,
       endpoint: AZURE_OPENAI_ENDPOINT || '未设置',
-      apiKey: maskedKey,
+      apiKeyFirst5: keyFirst5,
+      apiKeyLast5: keyLast5,
       apiKeyLength: AZURE_OPENAI_API_KEY?.length || 0,
+      expectedFirst5: expectedFirst5,
+      expectedLast5: expectedLast5,
+      isKeyCorrect: isKeyCorrect,
       deployment: AZURE_OPENAI_DEPLOYMENT,
       isConfigured: isAzureConfigured,
       buildUrl: getAzureOpenAIUrl()
