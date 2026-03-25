@@ -311,7 +311,7 @@ export async function GET(request: Request) {
   const diagnose = searchParams.get('diagnose');
   
   if (diagnose === '1') {
-    // 诊断模式
+    // 诊断模式 - 2024-03-25 强制刷新
     const keyFirst5 = AZURE_OPENAI_API_KEY?.substring(0, 5) || '';
     const keyLast5 = AZURE_OPENAI_API_KEY?.substring(AZURE_OPENAI_API_KEY.length - 5) || '';
     const expectedFirst5 = '4rNnn';
@@ -320,6 +320,7 @@ export async function GET(request: Request) {
     
     return NextResponse.json({
       diagnose: true,
+      timestamp: new Date().toISOString(),
       endpoint: AZURE_OPENAI_ENDPOINT || '未设置',
       apiKeyFirst5: keyFirst5,
       apiKeyLast5: keyLast5,
