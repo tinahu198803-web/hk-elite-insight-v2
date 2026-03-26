@@ -439,24 +439,26 @@ ${priceInfo}
     }
 
     const responseData: any = {
-      success: true,  // 添加成功标志，前端依赖此字段判断
-      expert: expert.name,
-      response: aiResponse,
-      timestamp: new Date().toISOString(),
-      detectedStocks: stockDataResults.map((stock: any) => ({
-        code: stock.code,
-        name: stock.name,
-        nameEn: stock.nameEn,
-        industry: stock.industry,
-        price: stock.price || 0,
-        change: stock.change || 0,
-        changePct: stock.changePct || 0,
-        marketCap: stock.marketCap || 0,
-        marketCapText: stock.marketCapText || null,
-        floatMarketCapText: stock.floatMarketCapText || null,
-        turnover: stock.volume || 0,
-        source: stock.source
-      }))
+      success: true,
+      data: {
+        expert: expert.name,
+        response: aiResponse,
+        timestamp: new Date().toISOString(),
+        detectedStocks: stockDataResults.map((stock: any) => ({
+          code: stock.code,
+          name: stock.name,
+          nameEn: stock.nameEn,
+          industry: stock.industry,
+          price: stock.price || 0,
+          change: stock.change || 0,
+          changePct: stock.changePct || 0,
+          marketCap: stock.marketCap || 0,
+          marketCapText: stock.marketCapText || null,
+          floatMarketCapText: stock.floatMarketCapText || null,
+          turnover: stock.volume || 0,
+          source: stock.source
+        }))
+      }
     };
 
     console.log('返回响应成功');
@@ -465,8 +467,10 @@ ${priceInfo}
     console.error('处理请求失败:', error);
     return NextResponse.json({ 
       success: false,
-      error: error.message || '服务器错误',
-      response: '抱歉，服务暂时不可用。请稍后重试。'
+      data: {
+        error: error.message || '服务器错误',
+        response: '抱歉，服务暂时不可用。请稍后重试。'
+      }
     }, { status: 500 });
   }
 }
