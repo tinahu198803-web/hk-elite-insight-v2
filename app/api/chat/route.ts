@@ -439,6 +439,7 @@ ${priceInfo}
     }
 
     const responseData: any = {
+      success: true,  // 添加成功标志，前端依赖此字段判断
       expert: expert.name,
       response: aiResponse,
       timestamp: new Date().toISOString(),
