@@ -379,7 +379,7 @@ export async function POST(request: Request) {
         let stockInfoContext = '';
         
         if (stockDataResults.length > 0) {
-          stockInfoContext = `\n\n【股票数据查询结果】\n`;
+          stockInfoContext = `\n\n【股票数据查询结果 - 请务必使用以下实时数据】\n`;
           stockDataResults.forEach(stock => {
             const priceInfo = stock.price > 0 
               ? `当前价: ${stock.price}港元, 涨跌: ${stock.change > 0 ? '+' : ''}${stock.change}港元 (${stock.changePct}%)`
@@ -387,15 +387,27 @@ export async function POST(request: Request) {
             
             let marketCapDisplay = stock.floatMarketCapText || stock.marketCapText || '暂无数据';
             
-            stockInfoContext += `股票代码: ${stock.code}
-公司名称: ${stock.name}
-英文名称: ${stock.nameEn}
-所属行业: ${stock.industry}
-${priceInfo}
-流动市值: ${marketCapDisplay}
+            // 港股通状态信息
+            const connectStatus = stock.stockConnectStatus || '待确认';
+            const connectType = stock.connectType || '未明确';
+            const hsciType = stock.hsciType || '未纳入';
+            const inclusionDate = stock.inclusionDate || '待确认';
+            
+            stockInfoContext += `★ 股票代码: ${stock.code}
+★ 公司名称: ${stock.name}
+★ 英文名称: ${stock.nameEn}
+★ 所属行业: ${stock.industry}
+★ 价格信息: ${priceInfo}
+★ 流动市值: ${marketCapDisplay}
+★ 港股通状态: ${connectStatus}
+★ 港股通类型: ${connectType}
+★ 恒生综合指数: ${hsciType}
+★ 纳入日期: ${inclusionDate}
 ---
 `;
           });
+          // 重要提示
+          stockInfoContext += `\n⚠️ 重要提示：上述【港股通状态】和【纳入日期】为最新实时数据，请优先使用这些信息回答用户问题！\n`;
         }
 
         let systemPrompt = expert.systemPrompt || '';
