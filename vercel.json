@@ -10,6 +10,10 @@
   },
   "crons": [
     {
+      "path": "/api/crawl/stock-connect?key=YOUR_CRON_SECRET_KEY",
+      "schedule": "0 2 * * *"
+    },
+    {
       "path": "/api/crawl/stock-data",
       "schedule": "0 8 * * *"
     }

@@ -4,6 +4,10 @@ import expertsConfig from '../../config/experts.json';
 import stocksConfig from '../../config/hk-stocks.json';
 import stockConnectKnowledge from '../../config/stock-connect-knowledge.json';
 
+// Supabase配置
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://atwlxpljfidlaaufeach.supabase.co';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
+
 type StockConnectInfo = {
   name?: string;
   nameEn?: string;
@@ -18,6 +22,55 @@ type StockConnectInfo = {
 const stockConnectData = stockConnectKnowledge as { stocks?: Record<string, StockConnectInfo> };
 const STOCK_CONNECT_MAP: Record<string, StockConnectInfo> = stockConnectData.stocks || {};
 
+// 从Supabase获取港股通数据（带缓存）
+let stockConnectCache: Map<string, any> = new Map();
+let cacheTime = 0;
+const CACHE_DURATION = 5 * 60 * 1000; // 5分钟缓存
+
+async function getStockConnectInfoFromDB(stockCode: string): Promise<any> {
+  const normalizedCode = stockCode.toLowerCase().replace('.hk', '').replace(/^hk/, '').replace(/^0+/, '');
+  
+  // 检查缓存
+  if (cacheTime && Date.now() - cacheTime < CACHE_DURATION) {
+    const cached = stockConnectCache.get(normalizedCode);
+    if (cached) return cached;
+  }
+  
+  try {
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/hk_stock_connect?stock_code=eq.${normalizedCode}&status=eq.active&select=*`,
+      {
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+        },
+        next: { revalidate: 300 }
+      }
+    );
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data && data.length > 0) {
+        const record = {
+          stockConnectStatus: data[0].connect_type === '南向' ? '已入通' : '未入通',
+          connectType: data[0].connect_type || '',
+          hsciType: data[0].hsci_type || '',
+          inclusionDate: data[0].inclusion_date || '',
+          notes: data[0].notes || ''
+        };
+        stockConnectCache.set(normalizedCode, record);
+        cacheTime = Date.now();
+        return record;
+      }
+    }
+  } catch (error) {
+    console.error('Supabase查询失败:', error);
+  }
+  
+  return null;
+}
+
+// 本地备用数据
 function getStockConnectInfo(stockCode: string): any {
   const normalizedCode = stockCode.toLowerCase().replace('.hk', '').replace(/^hk/, '');
   for (const [key, info] of Object.entries(STOCK_CONNECT_MAP)) {
@@ -33,6 +86,16 @@ function getStockConnectInfo(stockCode: string): any {
     }
   }
   return null;
+}
+
+// 异步获取港股通信息（优先数据库，备用本地）
+async function getStockConnectInfoAsync(stockCode: string): Promise<any> {
+  // 1. 优先从数据库获取
+  const dbInfo = await getStockConnectInfoFromDB(stockCode);
+  if (dbInfo) return dbInfo;
+  
+  // 2. 备用本地数据
+  return getStockConnectInfo(stockCode);
 }
 
 // Azure OpenAI 配置
@@ -118,7 +181,8 @@ async function getStockDataFromAPI(stockCode: string): Promise<any> {
       const internalData = await internalResponse.json();
       if (internalData.success) {
         const localInfo = getLocalStockInfo(stockCode);
-        const connectInfo = getStockConnectInfo(stockCode);
+        // 异步获取港股通信息（优先数据库）
+        const connectInfo = await getStockConnectInfoAsync(stockCode);
         
         return {
           code: internalData.code?.toUpperCase() || normalizedCode.toUpperCase(),
@@ -138,7 +202,8 @@ async function getStockDataFromAPI(stockCode: string): Promise<any> {
           stockConnectStatus: connectInfo?.stockConnectStatus || null,
           connectType: connectInfo?.connectType || null,
           hsciType: connectInfo?.hsciType || null,
-          inclusionDate: connectInfo?.inclusionDate || null
+          inclusionDate: connectInfo?.inclusionDate || null,
+          notes: connectInfo?.notes || null
         };
       }
     }
