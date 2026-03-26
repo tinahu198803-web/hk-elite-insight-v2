@@ -1,8 +1,8 @@
 {
-  "description": "港股通股票名单 - 持续更新",
-  "lastUpdated": "2026-03-15",
-  "dataSource": "恒生指数公司官网",
-  "notes": "以下为已纳入港股通的股票，数据仅供参考，请以港交所官网为准",
+  "description": "港股通股票名单 - 持续更新（2025年3月最新）",
+  "lastUpdated": "2026-03-26",
+  "dataSource": "恒生指数公司、港交所官方数据",
+  "notes": "以下为已纳入港股通的股票，数据仅供参考，请以港交所官网披露易为准",
   "stocks": {
     "00100.hk": {
       "name": "MiniMax-WP",
@@ -12,7 +12,7 @@
       "connectType": "",
       "hsciType": "",
       "inclusionDate": "",
-      "notes": "2025年新上市，暂未纳入港股通"
+      "notes": "新上市股票，待审核"
     },
     "02575.hk": {
       "name": "轩竹生物",
@@ -22,7 +22,7 @@
       "connectType": "南向",
       "hsciType": "小型股",
       "inclusionDate": "2025-03-09",
-      "notes": "2025年3月9日上市，3月9日纳入恒生综合指数和港股通"
+      "notes": "【重要】2025年3月9日上市，上市当日纳入恒生综合指数和港股通！"
     },
     "02655.hk": {
       "name": "果下科技",
@@ -32,7 +32,7 @@
       "connectType": "南向",
       "hsciType": "小型股",
       "inclusionDate": "2025-03",
-      "notes": "2025年3月上市，已纳入港股通"
+      "notes": "2025年3月纳入港股通"
     },
     "02659.hk": {
       "name": "宝济药业-B",
@@ -41,8 +41,8 @@
       "stockConnectStatus": "已入通",
       "connectType": "南向",
       "hsciType": "小型股",
-      "inclusionDate": "2025-03",
-      "notes": "2024年12月上市，2025年3月纳入恒生综合指数和港股通"
+      "inclusionDate": "2025-03-09",
+      "notes": "【重要】2024年12月上市，2025年3月9日正式纳入港股通！"
     },
     "00700.hk": {
       "name": "腾讯控股",
