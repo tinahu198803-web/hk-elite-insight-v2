@@ -176,9 +176,11 @@ async function callAzureOpenAI(messages: any[], temperature: number = 0.7, maxTo
   const apiUrl = getAzureOpenAIUrl();
   const finalMaxTokens = Math.max(maxTokens, 4000);
   
-  console.log('=== Azure OpenAI API 调用 ===');
+  console.log('=== Azure OpenAI API 调用开始 ===');
   console.log('URL:', apiUrl);
   console.log('Deployment:', AZURE_OPENAI_DEPLOYMENT);
+  console.log('API_KEY前5位:', AZURE_OPENAI_API_KEY.substring(0, 5));
+  console.log('API_KEY后5位:', AZURE_OPENAI_API_KEY.substring(AZURE_OPENAI_API_KEY.length - 5));
   console.log('API_KEY长度:', AZURE_OPENAI_API_KEY.length);
   console.log('Temperature:', temperature);
   console.log('MaxTokens:', finalMaxTokens);
@@ -196,6 +198,8 @@ async function callAzureOpenAI(messages: any[], temperature: number = 0.7, maxTo
       max_tokens: finalMaxTokens,
     }),
   });
+  
+  console.log('API响应状态:', response.status);
 
   if (!response.ok) {
     const errorText = await response.text();
@@ -423,8 +427,8 @@ ${priceInfo}
         console.log('Azure OpenAI响应成功');
       } catch (aiError: any) {
         console.error('AI调用失败，使用fallback:', aiError.message);
-        // AI调用失败，使用fallback回复
-        aiResponse = '';
+        // 返回详细错误信息以便调试
+        throw new Error(`Azure API调用失败: ${aiError.message}`);
       }
     }
     
