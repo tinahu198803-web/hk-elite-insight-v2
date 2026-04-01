@@ -16,6 +16,9 @@ interface StockData {
   open: number;
   prevClose: number;
   marketCap: number;
+  marketCapText: string | null;
+  floatMarketCap: number;
+  floatMarketCapText: string | null;
   pe: number;
   timestamp: string;
 }
@@ -251,7 +254,11 @@ export default function StockQueryPage() {
               </div>
               <div className="bg-white/5 rounded-lg p-4">
                 <p className="text-gray-400 text-sm">总市值</p>
-                <p className="text-white text-xl font-semibold mt-1">${formatNumber(stockData.marketCap)}</p>
+                <p className="text-white text-xl font-semibold mt-1">{stockData.marketCapText || 'N/A'}</p>
+              </div>
+              <div className="bg-white/5 rounded-lg p-4">
+                <p className="text-gray-400 text-sm">流通市值</p>
+                <p className="text-white text-xl font-semibold mt-1">{stockData.floatMarketCapText || 'N/A'}</p>
               </div>
               <div className="bg-white/5 rounded-lg p-4">
                 <p className="text-gray-400 text-sm">市盈率</p>
