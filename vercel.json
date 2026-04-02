@@ -1,5 +1,5 @@
 {
-  "name": "hk-ipo-tech",
+  "name": "hk-elite-insight",
   "buildCommand": "npm run build",
   "installCommand": "npm install",
   "framework": "nextjs",
