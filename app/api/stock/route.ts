@@ -1,5 +1,6 @@
-// 港股实时股票数据API v2.1 - 东方财富主数据源
+// 港股实时股票数据API v2.2 - 东方财富主数据源 + 自动学习
 import { NextResponse } from 'next/server';
+import { stockLearner } from '@/lib/stock-learner';
 
 // 标准化股票代码
 function normalizeCode(rawCode: string): string {
@@ -196,48 +197,77 @@ export async function GET(request: Request) {
 
   console.log('股票查询:', rawCode, '->', code);
 
-  // 1. 首先检查本地数据库 - 本地名称优先，更准确
+  // 1. 首先检查本地数据库 (硬编码备选)
   const localData = LOCAL_DB[code];
   
-  // 2. 东方财富API获取实时数据
+  // 2. 检查Supabase数据库 (动态学习的股票)
+  const dbStock = await stockLearner.getStock(code);
+  const dbData = dbStock ? { 
+    name: dbStock.name, 
+    nameEn: dbStock.name_en, 
+    industry: dbStock.industry 
+  } : null;
+  
+  // 优先使用数据库名称 > 本地硬编码
+  const verifiedName = dbData?.name || localData?.name;
+  const verifiedNameEn = dbData?.nameEn || localData?.nameEn;
+  const verifiedIndustry = dbData?.industry || localData?.industry;
+  
+  // 3. 东方财富API获取实时数据
   const eastmoneyResult = await getFromEastMoney(code);
   if (eastmoneyResult.success) {
     console.log('东方财富成功:', eastmoneyResult.price, eastmoneyResult.floatMarketCapText);
-    // ⚠️ 关键修复：本地名称准确，强制使用本地名称覆盖API返回的名称
-    if (localData) {
-      eastmoneyResult.name = localData.name;
-      eastmoneyResult.nameEn = localData.nameEn;
-      eastmoneyResult.industry = localData.industry;
-      console.log('使用本地名称:', localData.name);
+    
+    // 如果API返回的名称与数据库不匹配，自动学习新股票
+    const apiName = eastmoneyResult.name;
+    if (!verifiedName && apiName && apiName !== `股票${code}`) {
+      // 发现新股票！自动学习
+      await stockLearner.learnStock(code, apiName, '', '', 'api');
+      console.log('🆕 自动学习新股票:', code, apiName);
     }
+    
+    // 使用已验证的名称
+    if (verifiedName) {
+      eastmoneyResult.name = verifiedName;
+      eastmoneyResult.nameEn = verifiedNameEn || '';
+      eastmoneyResult.industry = verifiedIndustry || '';
+    }
+    
     return NextResponse.json(eastmoneyResult);
   }
   console.log('东方财富失败:', eastmoneyResult.error);
 
-  // 2. 腾讯API - 也需要强制使用本地名称
+  // 4. 腾讯API - 也使用已验证的名称
   const tencentResult = await getFromTencent(code);
   if (tencentResult.success) {
     console.log('腾讯成功:', tencentResult.price);
-    // ⚠️ 关键修复：强制使用本地准确的名称
-    if (localData) {
-      tencentResult.name = localData.name;
-      tencentResult.nameEn = localData.nameEn;
-      tencentResult.industry = localData.industry;
-      console.log('使用本地名称:', localData.name);
+    
+    // 如果API返回的名称与数据库不匹配，自动学习新股票
+    const apiName = tencentResult.name;
+    if (!verifiedName && apiName && apiName !== `股票${code}`) {
+      await stockLearner.learnStock(code, apiName, '', '', 'api');
+      console.log('🆕 自动学习新股票:', code, apiName);
     }
+    
+    if (verifiedName) {
+      tencentResult.name = verifiedName;
+      tencentResult.nameEn = verifiedNameEn || '';
+      tencentResult.industry = verifiedIndustry || '';
+    }
+    
     return NextResponse.json(tencentResult);
   }
   console.log('腾讯失败:', tencentResult.error);
 
-  // 3. 本地数据库 (localData已在前面定义)
-  if (localData) {
+  // 5. 本地数据库备用 (localData或dbData)
+  if (verifiedName) {
     return NextResponse.json({
       success: true,
       source: 'local',
       code: `${code}.HK`,
-      name: localData.name,
-      nameEn: localData.nameEn,
-      industry: localData.industry,
+      name: verifiedName,
+      nameEn: verifiedNameEn || '',
+      industry: verifiedIndustry || '',
       price: 0,
       change: '0.00',
       changePct: '0.00',
