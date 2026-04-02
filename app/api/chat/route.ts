@@ -184,9 +184,12 @@ async function getStockDataFromAPI(stockCode: string): Promise<any> {
         // 异步获取港股通信息（优先数据库）
         const connectInfo = await getStockConnectInfoAsync(stockCode);
         
+        // ⚠️ 修复：优先使用本地名称，本地名称更准确
+        const finalName = localInfo?.name || internalData.name || normalizedCode;
+        
         return {
           code: internalData.code?.toUpperCase() || normalizedCode.toUpperCase(),
-          name: localInfo?.name || internalData.name || normalizedCode,
+          name: finalName,
           nameEn: localInfo?.nameEn || internalData.nameEn || '',
           industry: localInfo?.industry || internalData.industry || '未知',
           price: internalData.price || 0,

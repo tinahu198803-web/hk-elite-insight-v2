@@ -134,23 +134,49 @@ async function getFromTencent(code: string) {
   }
 }
 
-// 本地数据库
+// 本地数据库 - 核心股票代码映射（从hk-stocks.json同步）
 const LOCAL_DB: Record<string, any> = {
-  '02659': { name: '宝济药业-B', nameEn: 'BAO PHARMA-B', industry: '生物医药' },
-  '02575': { name: '轩竹生物', nameEn: 'Xuanzhu Biotech', industry: '生物医药' },
-  '02655': { name: '果下科技', nameEn: 'Guoxia Tech', industry: '科技' },
-  '00700': { name: '腾讯控股', nameEn: 'Tencent', industry: '互联网' },
-  '09988': { name: '阿里巴巴-SW', nameEn: 'Alibaba', industry: '互联网' },
+  // 互联网/科技
+  '00700': { name: '腾讯控股', nameEn: 'Tencent Holdings', industry: '互联网' },
+  '09988': { name: '阿里巴巴-SW', nameEn: 'Alibaba Group', industry: '互联网' },
   '03690': { name: '美团-W', nameEn: 'Meituan', industry: '互联网' },
-  '01810': { name: '小米集团-W', nameEn: 'Xiaomi', industry: '互联网' },
+  '01810': { name: '小米集团-W', nameEn: 'Xiaomi Group', industry: '互联网' },
   '02418': { name: '京东集团-SW', nameEn: 'JD.com', industry: '互联网' },
+  '09618': { name: '百度集团-SW', nameEn: 'Baidu', industry: '互联网' },
+  '09633': { name: '京东健康', nameEn: 'JD Health', industry: '互联网医疗' },
+  '02559': { name: '快手-W', nameEn: 'Kuaishou', industry: '互联网' },
+  '09999': { name: '网易-S', nameEn: 'NetEase', industry: '互联网' },
+  '06699': { name: '创梦天地', nameEn: 'iDreamSky', industry: '互联网' },
+  // 汽车/新能源
+  '09868': { name: '小鹏汽车-W', nameEn: 'XPeng', industry: '新能源汽车' },
+  '09881': { name: '理想汽车-W', nameEn: 'Li Auto', industry: '新能源汽车' },
+  '01765': { name: '比亚迪股份', nameEn: 'BYD', industry: '新能源汽车' },
+  '02333': { name: '长城汽车', nameEn: 'Great Wall Motor', industry: '汽车' },
+  '00175': { name: '吉利汽车', nameEn: 'Geely', industry: '汽车' },
+  // 医药/生物
   '01877': { name: '百济神州', nameEn: 'BeiGene', industry: '生物医药' },
   '02269': { name: '药明生物', nameEn: 'WuXi Biologics', industry: '生物医药' },
-  '09868': { name: '小鹏汽车-W', nameEn: 'XPeng', industry: '新能源车' },
-  '09881': { name: '理想汽车-W', nameEn: 'Li Auto', industry: '新能源车' },
-  '06030': { name: '中信证券', nameEn: 'CITIC', industry: '金融' },
+  '02269': { name: '药明生物', nameEn: 'WuXi Biologics', industry: '生物医药' },
+  '02575': { name: '轩竹生物', nameEn: 'Xuanzhu Biotech', industry: '生物医药' },
+  '02659': { name: '宝济药业-B', nameEn: 'BAO PHARMA-B', industry: '生物医药' },
+  '02655': { name: '果下科技', nameEn: 'Guoxia Tech', industry: '科技' },
+  '09989': { name: '翰森制药', nameEn: 'Hansoh Pharmaceutical', industry: '医药' },
+  '01801': { name: '信达生物', nameEn: 'Innovent', industry: '生物医药' },
+  '01548': { name: '金斯瑞生物科技', nameEn: 'GenScript', industry: '生物医药' },
+  '06186': { name: '康宁杰瑞', nameEn: 'Alphamab Oncology', industry: '生物医药' },
+  '09939': { name: '康方生物', nameEn: 'Akeso', industry: '生物医药' },
+  '02569': { name: '再鼎医药', nameEn: 'Zai Lab', industry: '生物医药' },
+  // 金融
+  '06030': { name: '中信证券', nameEn: 'CITIC Securities', industry: '金融' },
+  '06837': { name: '海通证券', nameEn: 'Haitong Securities', industry: '金融' },
+  '03908': { name: '中金公司', nameEn: 'CICC', industry: '金融' },
+  '06099': { name: '招商证券', nameEn: 'China Merchants Securities', industry: '金融' },
   '02318': { name: '中国平安', nameEn: 'Ping An', industry: '保险' },
+  '02313': { name: '申洲国际', nameEn: 'Shenzhou', industry: '纺织' },
   '00981': { name: '中芯国际', nameEn: 'SMIC', industry: '半导体' },
+  '06098': { name: '碧桂园服务', nameEn: 'Country Garden Services', industry: '房地产' },
+  '06060': { name: '贝壳-W', nameEn: 'KE Holdings', industry: '互联网' },
+  '02691': { name: '京东物流', nameEn: 'JD Logistics', industry: '物流' },
 };
 
 export async function GET(request: Request) {
@@ -170,30 +196,34 @@ export async function GET(request: Request) {
 
   console.log('股票查询:', rawCode, '->', code);
 
-  // 1. 东方财富API
+  // 1. 首先检查本地数据库 - 本地名称优先，更准确
+  const localData = LOCAL_DB[code];
+  
+  // 2. 东方财富API获取实时数据
   const eastmoneyResult = await getFromEastMoney(code);
   if (eastmoneyResult.success) {
     console.log('东方财富成功:', eastmoneyResult.price, eastmoneyResult.floatMarketCapText);
-    // 补充本地信息
-    const local = LOCAL_DB[code];
-    if (local) {
-      eastmoneyResult.name = local.name;
-      eastmoneyResult.nameEn = local.nameEn;
-      eastmoneyResult.industry = local.industry;
+    // ⚠️ 关键修复：本地名称准确，强制使用本地名称覆盖API返回的名称
+    if (localData) {
+      eastmoneyResult.name = localData.name;
+      eastmoneyResult.nameEn = localData.nameEn;
+      eastmoneyResult.industry = localData.industry;
+      console.log('使用本地名称:', localData.name);
     }
     return NextResponse.json(eastmoneyResult);
   }
   console.log('东方财富失败:', eastmoneyResult.error);
 
-  // 2. 腾讯API
+  // 2. 腾讯API - 也需要强制使用本地名称
   const tencentResult = await getFromTencent(code);
   if (tencentResult.success) {
     console.log('腾讯成功:', tencentResult.price);
-    const local = LOCAL_DB[code];
-    if (local) {
-      tencentResult.name = local.name;
-      tencentResult.nameEn = local.nameEn;
-      tencentResult.industry = local.industry;
+    // ⚠️ 关键修复：强制使用本地准确的名称
+    if (localData) {
+      tencentResult.name = localData.name;
+      tencentResult.nameEn = localData.nameEn;
+      tencentResult.industry = localData.industry;
+      console.log('使用本地名称:', localData.name);
     }
     return NextResponse.json(tencentResult);
   }

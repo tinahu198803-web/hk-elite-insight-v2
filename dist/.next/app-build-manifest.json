@@ -1,0 +1,96 @@
+{
+  "pages": {
+    "/_not-found": [
+      "static/chunks/webpack-8b4da49e50fe615c.js",
+      "static/chunks/fd9d1056-3f67bd7f04959fd0.js",
+      "static/chunks/69-bbf9e2ce146f73dd.js",
+      "static/chunks/main-app-fc530a2c2bbae21b.js",
+      "static/chunks/app/_not-found-a8144005d6887d4d.js"
+    ],
+    "/layout": [
+      "static/chunks/webpack-8b4da49e50fe615c.js",
+      "static/chunks/fd9d1056-3f67bd7f04959fd0.js",
+      "static/chunks/69-bbf9e2ce146f73dd.js",
+      "static/chunks/main-app-fc530a2c2bbae21b.js",
+      "static/css/c42cb6d0e22d8ba0.css",
+      "static/chunks/app/layout-af182c21dfe13e8f.js"
+    ],
+    "/admin/questions/page": [
+      "static/chunks/webpack-8b4da49e50fe615c.js",
+      "static/chunks/fd9d1056-3f67bd7f04959fd0.js",
+      "static/chunks/69-bbf9e2ce146f73dd.js",
+      "static/chunks/main-app-fc530a2c2bbae21b.js",
+      "static/chunks/app/admin/questions/page-785871bde471c2eb.js"
+    ],
+    "/admin/page": [
+      "static/chunks/webpack-8b4da49e50fe615c.js",
+      "static/chunks/fd9d1056-3f67bd7f04959fd0.js",
+      "static/chunks/69-bbf9e2ce146f73dd.js",
+      "static/chunks/main-app-fc530a2c2bbae21b.js",
+      "static/chunks/app/admin/page-d0f10c29ad5dcdaa.js"
+    ],
+    "/experts/page": [
+      "static/chunks/webpack-8b4da49e50fe615c.js",
+      "static/chunks/fd9d1056-3f67bd7f04959fd0.js",
+      "static/chunks/69-bbf9e2ce146f73dd.js",
+      "static/chunks/main-app-fc530a2c2bbae21b.js",
+      "static/chunks/app/experts/page-82af19e663bda14a.js"
+    ],
+    "/chat/page": [
+      "static/chunks/webpack-8b4da49e50fe615c.js",
+      "static/chunks/fd9d1056-3f67bd7f04959fd0.js",
+      "static/chunks/69-bbf9e2ce146f73dd.js",
+      "static/chunks/main-app-fc530a2c2bbae21b.js",
+      "static/chunks/app/chat/page-9bbf84bb4a88d517.js"
+    ],
+    "/health-check/page": [
+      "static/chunks/webpack-8b4da49e50fe615c.js",
+      "static/chunks/fd9d1056-3f67bd7f04959fd0.js",
+      "static/chunks/69-bbf9e2ce146f73dd.js",
+      "static/chunks/main-app-fc530a2c2bbae21b.js",
+      "static/chunks/app/health-check/page-986a68485f49f37e.js"
+    ],
+    "/ipo-analysis/page": [
+      "static/chunks/webpack-8b4da49e50fe615c.js",
+      "static/chunks/fd9d1056-3f67bd7f04959fd0.js",
+      "static/chunks/69-bbf9e2ce146f73dd.js",
+      "static/chunks/main-app-fc530a2c2bbae21b.js",
+      "static/chunks/app/ipo-analysis/page-9a5969f1bdb27042.js"
+    ],
+    "/membership/page": [
+      "static/chunks/webpack-8b4da49e50fe615c.js",
+      "static/chunks/fd9d1056-3f67bd7f04959fd0.js",
+      "static/chunks/69-bbf9e2ce146f73dd.js",
+      "static/chunks/main-app-fc530a2c2bbae21b.js",
+      "static/chunks/app/membership/page-8d2c7edef4abb84a.js"
+    ],
+    "/profile/page": [
+      "static/chunks/webpack-8b4da49e50fe615c.js",
+      "static/chunks/fd9d1056-3f67bd7f04959fd0.js",
+      "static/chunks/69-bbf9e2ce146f73dd.js",
+      "static/chunks/main-app-fc530a2c2bbae21b.js",
+      "static/chunks/app/profile/page-edf7f1a87c6a85c4.js"
+    ],
+    "/page": [
+      "static/chunks/webpack-8b4da49e50fe615c.js",
+      "static/chunks/fd9d1056-3f67bd7f04959fd0.js",
+      "static/chunks/69-bbf9e2ce146f73dd.js",
+      "static/chunks/main-app-fc530a2c2bbae21b.js",
+      "static/chunks/app/page-7e9f15c064c1f69f.js"
+    ],
+    "/questions/page": [
+      "static/chunks/webpack-8b4da49e50fe615c.js",
+      "static/chunks/fd9d1056-3f67bd7f04959fd0.js",
+      "static/chunks/69-bbf9e2ce146f73dd.js",
+      "static/chunks/main-app-fc530a2c2bbae21b.js",
+      "static/chunks/app/questions/page-5978b8d66b5c755b.js"
+    ],
+    "/stock/page": [
+      "static/chunks/webpack-8b4da49e50fe615c.js",
+      "static/chunks/fd9d1056-3f67bd7f04959fd0.js",
+      "static/chunks/69-bbf9e2ce146f73dd.js",
+      "static/chunks/main-app-fc530a2c2bbae21b.js",
+      "static/chunks/app/stock/page-e907b68d490f5947.js"
+    ]
+  }
+}
