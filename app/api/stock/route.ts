@@ -41,16 +41,15 @@ async function getFromEastMoney(code: string) {
     const prevClose = price - change;
     const changePct = prevClose > 0 ? ((change / prevClose) * 100).toFixed(2) : '0.00';
     
-    // f116=总市值(元), f117=流通市值(元) - 东方财富直接返回元为单位
-    const totalMarketCap = d.f116 || 0; // 总市值(元)
-    const floatMarketCap = d.f117 || 0; // 流通市值(元)
+    // f116=总市值(元), f117=流通市值(元)
+    const totalMarketCap = d.f116 || 0;
+    const floatMarketCap = d.f117 || 0;
     
-    // 转换为亿港元 (假设汇率约1.03)
+    // 转换为亿港元
     const HKD_RATE = 1.03;
     const totalCapHKD = totalMarketCap / 100000000 / HKD_RATE;
     const floatCapHKD = floatMarketCap / 100000000 / HKD_RATE;
     
-    // 生成市值显示文本
     let marketCapText = null;
     let floatMarketCapText = null;
     if (totalCapHKD > 0) {
@@ -99,7 +98,6 @@ async function getFromTencent(code: string) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     
     const text = await res.text();
-    // 格式: v_hk00700="100~名称~代码~现价~昨收~今开~成交量~..."
     const match = text.match(/="([^"]+)"/);
     if (!match) throw new Error('数据格式错误');
 
@@ -134,7 +132,7 @@ async function getFromTencent(code: string) {
   }
 }
 
-// 本地数据库 - 核心股票代码映射（从hk-stocks.json同步）
+// 本地数据库 - 核心股票代码映射
 const LOCAL_DB: Record<string, any> = {
   // 互联网/科技
   '00700': { name: '腾讯控股', nameEn: 'Tencent Holdings', industry: '互联网' },
@@ -155,7 +153,6 @@ const LOCAL_DB: Record<string, any> = {
   '00175': { name: '吉利汽车', nameEn: 'Geely', industry: '汽车' },
   // 医药/生物
   '01877': { name: '百济神州', nameEn: 'BeiGene', industry: '生物医药' },
-  '02269': { name: '药明生物', nameEn: 'WuXi Biologics', industry: '生物医药' },
   '02269': { name: '药明生物', nameEn: 'WuXi Biologics', industry: '生物医药' },
   '02575': { name: '轩竹生物', nameEn: 'Xuanzhu Biotech', industry: '生物医药' },
   '02659': { name: '宝济药业-B', nameEn: 'BAO PHARMA-B', industry: '生物医药' },
@@ -183,7 +180,6 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   let rawCode = searchParams.get('code') || '';
   
-  // 标准化代码
   const code = normalizeCode(rawCode);
   
   if (code.length < 4) {
@@ -196,14 +192,13 @@ export async function GET(request: Request) {
 
   console.log('股票查询:', rawCode, '->', code);
 
-  // 1. 首先检查本地数据库 - 本地名称优先，更准确
+  // 1. 首先检查本地数据库
   const localData = LOCAL_DB[code];
   
-  // 2. 东方财富API获取实时数据
+  // 2. 东方财富API
   const eastmoneyResult = await getFromEastMoney(code);
   if (eastmoneyResult.success) {
-    console.log('东方财富成功:', eastmoneyResult.price, eastmoneyResult.floatMarketCapText);
-    // ⚠️ 关键修复：本地名称准确，强制使用本地名称覆盖API返回的名称
+    console.log('东方财富成功:', eastmoneyResult.price);
     if (localData) {
       eastmoneyResult.name = localData.name;
       eastmoneyResult.nameEn = localData.nameEn;
@@ -214,11 +209,10 @@ export async function GET(request: Request) {
   }
   console.log('东方财富失败:', eastmoneyResult.error);
 
-  // 2. 腾讯API - 也需要强制使用本地名称
+  // 3. 腾讯API
   const tencentResult = await getFromTencent(code);
   if (tencentResult.success) {
     console.log('腾讯成功:', tencentResult.price);
-    // ⚠️ 关键修复：强制使用本地准确的名称
     if (localData) {
       tencentResult.name = localData.name;
       tencentResult.nameEn = localData.nameEn;
@@ -229,8 +223,7 @@ export async function GET(request: Request) {
   }
   console.log('腾讯失败:', tencentResult.error);
 
-  // 3. 本地数据库
-  const localData = LOCAL_DB[code];
+  // 4. 本地数据库备用
   if (localData) {
     return NextResponse.json({
       success: true,
