@@ -504,9 +504,10 @@ export async function POST(request: Request) {
         console.log('Azure OpenAI响应成功');
       } catch (aiError: any) {
         console.error('AI调用失败，使用fallback:', aiError.message);
-        // 返回详细错误信息以便调试
-        throw new Error(`Azure API调用失败: ${aiError.message}`);
+        // 不再抛出异常，让系统继续使用fallback回复
       }
+    } else {
+      console.log('Azure OpenAI未配置，使用fallback回复');
     }
     
     // 如果没有AI回复，使用fallback
