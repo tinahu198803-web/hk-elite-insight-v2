@@ -5,6 +5,7 @@
 
 import { NextResponse } from 'next/server';
 import { stockLearner } from '../../lib/stock-learner';
+import { supabaseAdmin } from '../../lib/supabase';
 
 // GET - 获取学习统计和未验证的股票
 export async function GET(request: Request) {
@@ -37,7 +38,6 @@ export async function GET(request: Request) {
     
     if (action === 'all') {
       // 获取所有股票
-      const { supabaseAdmin } = await import('../../lib/supabase');
       const { data } = await supabaseAdmin
         .from('stock_codes')
         .select('*')
