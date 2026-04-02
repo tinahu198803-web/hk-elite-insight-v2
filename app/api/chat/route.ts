@@ -437,6 +437,7 @@ export async function POST(request: Request) {
     }
     
     let aiResponse = '';
+    let aiErrorMessage = '';
     
     // 尝试调用Azure OpenAI
     if (isAzureConfigured) {
@@ -503,17 +504,45 @@ export async function POST(request: Request) {
         
         console.log('Azure OpenAI响应成功');
       } catch (aiError: any) {
-        console.error('AI调用失败，使用fallback:', aiError.message);
-        // 不再抛出异常，让系统继续使用fallback回复
+        console.error('AI调用失败:', aiError.message);
+        aiErrorMessage = aiError.message;
+        // 明确记录错误，不再静默使用fallback
       }
     } else {
-      console.log('Azure OpenAI未配置，使用fallback回复');
+      aiErrorMessage = 'Azure OpenAI未正确配置（缺少API密钥或端点）';
+      console.log('Azure OpenAI未配置');
     }
     
-    // 如果没有AI回复，使用fallback
+    // 如果没有AI回复，且有错误，返回错误信息而不是欢迎语
     if (!aiResponse || aiResponse.trim() === '') {
-      console.log('使用fallback回复');
-      aiResponse = generateExpertResponse(message, stockDataResults, expert);
+      console.log('AI调用失败，返回错误信息');
+      
+      const responseData: any = {
+        success: false,
+        data: {
+          expert: expert.name,
+          response: aiErrorMessage || 'AI服务暂时不可用，请稍后重试。',
+          timestamp: new Date().toISOString(),
+          error: aiErrorMessage,
+          detectedStocks: stockDataResults.map((stock: any) => ({
+            code: stock.code,
+            name: stock.name,
+            nameEn: stock.nameEn,
+            industry: stock.industry,
+            price: stock.price || 0,
+            change: stock.change || 0,
+            changePct: stock.changePct || 0,
+            marketCap: stock.marketCap || 0,
+            marketCapText: stock.marketCapText || null,
+            floatMarketCapText: stock.floatMarketCapText || null,
+            turnover: stock.volume || 0,
+            source: stock.source
+          }))
+        }
+      };
+
+      console.log('返回错误响应');
+      return NextResponse.json(responseData);
     }
 
     const responseData: any = {

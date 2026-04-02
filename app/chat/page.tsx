@@ -201,24 +201,35 @@ ${expertData.features?.map(f => `• ${f}`).join('\n')}
       });
 
       const result = await response.json();
+      console.log('API响应:', JSON.stringify(result, null, 2));
 
-      if (result.success) {
+      if (result.success && result.data?.response) {
+        // AI调用成功
         const aiMessage: Message = {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: result.data?.response || '抱歉，未能获取有效回复',
+          content: result.data.response,
           timestamp: new Date(),
           detectedStocks: result.data?.detectedStocks || []
         };
         setMessages(prev => [...prev, aiMessage]);
       } else {
-        throw new Error(result.error);
+        // AI调用失败，显示错误信息
+        const errorInfo = result.data?.error || result.data?.response || 'AI服务暂时不可用';
+        const errorMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: `⚠️ AI服务暂时不可用\n\n${errorInfo}\n\n请稍后重试，或检查Azure OpenAI配置。`,
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, errorMessage]);
       }
     } catch (error: any) {
+      console.error('请求错误:', error);
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: `抱歉，服务暂时不可用。请稍后重试。\n\n错误信息：${error.message}`,
+        content: `⚠️ 网络请求失败\n\n${error.message}\n\n请检查网络连接后重试。`,
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);
