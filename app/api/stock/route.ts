@@ -41,31 +41,23 @@ async function getFromEastMoney(code: string) {
     const prevClose = price - change;
     const changePct = prevClose > 0 ? ((change / prevClose) * 100).toFixed(2) : '0.00';
     
-    // f50=总市值(元), f152=流通市值(元) - 东方财富直接返回元为单位
-    const totalMarketCap = d.f50 || 0; // 总市值(元)
-    const floatMarketCap = d.f152 || 0; // 流通市值(元)
+    // f116=总市值(元), f117=流通市值(元) - 东方财富直接返回元为单位
+    const totalMarketCap = d.f116 || 0; // 总市值(元)
+    const floatMarketCap = d.f117 || 0; // 流通市值(元)
     
     // 转换为亿港元 (假设汇率约1.03)
     const HKD_RATE = 1.03;
     const totalCapHKD = totalMarketCap / 100000000 / HKD_RATE;
     const floatCapHKD = floatMarketCap / 100000000 / HKD_RATE;
     
-    // 如果市值仍为0，尝试使用f116/f117字段(某些情况下返回的是万元)
+    // 生成市值显示文本
     let marketCapText = null;
     let floatMarketCapText = null;
     if (totalCapHKD > 0) {
       marketCapText = `${totalCapHKD.toFixed(2)}亿港元`;
-    } else if ((d.f116 || 0) > 0) {
-      // 万元单位转换
-      const totalCapHKD2 = (d.f116 || 0) * 10000 / 100000000 / HKD_RATE;
-      marketCapText = `${totalCapHKD2.toFixed(2)}亿港元`;
     }
-    
     if (floatCapHKD > 0) {
       floatMarketCapText = `${floatCapHKD.toFixed(2)}亿港元`;
-    } else if ((d.f117 || 0) > 0) {
-      const floatCapHKD2 = (d.f117 || 0) * 10000 / 100000000 / HKD_RATE;
-      floatMarketCapText = `${floatCapHKD2.toFixed(2)}亿港元`;
     }
 
     return {
