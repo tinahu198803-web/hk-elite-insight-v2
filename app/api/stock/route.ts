@@ -229,8 +229,7 @@ export async function GET(request: Request) {
   }
   console.log('腾讯失败:', tencentResult.error);
 
-  // 3. 本地数据库
-  const localData = LOCAL_DB[code];
+  // 3. 本地数据库 (localData已在前面定义)
   if (localData) {
     return NextResponse.json({
       success: true,
