@@ -1,6 +1,6 @@
 // 港股实时股票数据API v2.2 - 东方财富主数据源 + 自动学习
 import { NextResponse } from 'next/server';
-import { stockLearner } from '../lib/stock-learner';
+import { stockLearner } from '../../lib/stock-learner';
 
 // 标准化股票代码
 function normalizeCode(rawCode: string): string {
