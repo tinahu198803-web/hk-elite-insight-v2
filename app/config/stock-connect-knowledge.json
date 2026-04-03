@@ -4,6 +4,16 @@
   "dataSource": "恒生指数公司、港交所官方数据",
   "notes": "以下为已纳入港股通的股票，数据仅供参考，请以港交所官网披露易为准",
   "stocks": {
+    "02629.hk": {
+      "name": "MIRXES-B",
+      "nameEn": "MIRXES-B",
+      "industry": "生物医药",
+      "stockConnectStatus": "未入通",
+      "connectType": "",
+      "hsciType": "",
+      "inclusionDate": "",
+      "notes": "2026年新上市股票，待审核"
+    },
     "00100.hk": {
       "name": "MiniMax-WP",
       "nameEn": "MiniMax",

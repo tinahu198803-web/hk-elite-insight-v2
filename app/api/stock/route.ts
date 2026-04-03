@@ -174,6 +174,8 @@ const LOCAL_DB: Record<string, any> = {
   '06098': { name: '碧桂园服务', nameEn: 'Country Garden Services', industry: '房地产' },
   '06060': { name: '贝壳-W', nameEn: 'KE Holdings', industry: '互联网' },
   '02691': { name: '京东物流', nameEn: 'JD Logistics', industry: '物流' },
+  // 2026年新上市股票
+  '02629': { name: 'MIRXES-B', nameEn: 'MIRXES-B', industry: '生物医药' },
 };
 
 export async function GET(request: Request) {
