@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
 
+// Supabase配置
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://atwlxpljfidlaaufeach.supabase.co';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
+
 // 用户反馈类型
 type Feedback = {
   id?: string;
@@ -13,20 +17,98 @@ type Feedback = {
   timestamp?: string;
 };
 
-// 存储反馈数据（生产环境应存储到数据库）
-const feedbackStore: Map<string, Feedback> = new Map();
+// 添加反馈到Supabase
+async function addFeedbackToDB(feedback: Feedback): Promise<boolean> {
+  try {
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/expert_feedback`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({
+          expert_id: feedback.expertId,
+          interaction_id: feedback.messageId,
+          user_id: null,
+          rating: feedback.rating === 'helpful' || feedback.rating === 'accurate' ? 'positive' : 'negative',
+          feedback: feedback.comment,
+          improvement_suggestion: null,
+          question_context: feedback.question,
+          response_context: null,
+          stock_code: feedback.stockCode,
+          created_at: feedback.timestamp || new Date().toISOString()
+        })
+      }
+    );
 
-// 反馈统计
-const feedbackStats = {
-  totalFeedback: 0,
-  helpful: 0,
-  notHelpful: 0,
-  accurate: 0,
-  inaccurate: 0,
-  byExpert: {} as Record<string, { helpful: number; notHelpful: number; accurate: number; inaccurate: number }>,
-  byStock: {} as Record<string, { helpful: number; notHelpful: number }>,
-  recentTrends: [] as { date: string; helpful: number; notHelpful: number }[],
-};
+    return response.ok;
+  } catch (error) {
+    console.error('Supabase写入失败:', error);
+    return false;
+  }
+}
+
+// 从Supabase获取反馈统计
+async function getFeedbackStats(): Promise<any> {
+  try {
+    // 获取总反馈数
+    const countRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/expert_feedback?select=*&order=created_at.desc`,
+      {
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+        }
+      }
+    );
+
+    if (!countRes.ok) {
+      return getLocalStats();
+    }
+
+    const data = await countRes.json();
+    
+    // 计算统计数据
+    const totalFeedback = data.length || 0;
+    const positive = data.filter((f: any) => f.rating === 'positive').length;
+    const negative = data.filter((f: any) => f.rating === 'negative').length;
+    const byExpert: Record<string, any> = {};
+
+    for (const f of data) {
+      if (!byExpert[f.expert_id]) {
+        byExpert[f.expert_id] = { helpful: 0, notHelpful: 0, accurate: 0, inaccurate: 0 };
+      }
+      if (f.rating === 'positive') byExpert[f.expert_id].helpful++;
+      if (f.rating === 'negative') byExpert[f.expert_id].notHelpful++;
+    }
+
+    return {
+      totalFeedback,
+      helpful: positive,
+      notHelpful: negative,
+      helpfulRate: totalFeedback > 0 ? ((positive / totalFeedback) * 100).toFixed(1) + '%' : '0%',
+      byExpert
+    };
+  } catch (error) {
+    console.error('获取Supabase数据失败:', error);
+    return getLocalStats();
+  }
+}
+
+// 获取本地统计（备用）
+function getLocalStats() {
+  return {
+    totalFeedback: 0,
+    helpful: 0,
+    notHelpful: 0,
+    helpfulRate: '0%',
+    byExpert: {}
+  };
+}
 
 // 添加反馈
 export async function POST(request: Request) {
@@ -64,13 +146,10 @@ export async function POST(request: Request) {
       timestamp: new Date().toISOString()
     };
 
-    // 存储反馈
-    feedbackStore.set(feedback.id!, feedback);
+    // 同时写入Supabase和本地（双重保险）
+    const dbSuccess = await addFeedbackToDB(feedback);
 
-    // 更新统计
-    updateStats(feedback);
-
-    console.log('✅ 用户反馈已记录:', feedback);
+    console.log('✅ 用户反馈已记录:', feedback, 'DB写入:', dbSuccess ? '成功' : '失败');
 
     return NextResponse.json({
       success: true,
@@ -96,54 +175,76 @@ export async function GET(request: Request) {
 
     if (type === 'summary') {
       // 返回总体统计
+      const stats = await getFeedbackStats();
+      
       return NextResponse.json({
         success: true,
-        data: {
-          totalFeedback: feedbackStats.totalFeedback,
-          helpfulRate: feedbackStats.totalFeedback > 0 
-            ? ((feedbackStats.helpful / feedbackStats.totalFeedback) * 100).toFixed(1) + '%' 
-            : '0%',
-          accurateRate: feedbackStats.totalFeedback > 0 
-            ? ((feedbackStats.accurate / feedbackStats.totalFeedback) * 100).toFixed(1) + '%' 
-            : '0%',
-          byExpert: feedbackStats.byExpert,
-          recentTrends: feedbackStats.recentTrends.slice(-7), // 最近7天
-        }
+        data: stats
       });
     }
 
     if (type === 'detailed' && expertId) {
       // 返回特定专家的详细反馈
-      const expertFeedback = Array.from(feedbackStore.values())
-        .filter(f => f.expertId === expertId)
-        .sort((a, b) => new Date(b.timestamp!).getTime() - new Date(a.timestamp!).getTime())
-        .slice(0, 50);
+      const response = await fetch(
+        `${SUPABASE_URL}/rest/v1/expert_feedback?expert_id=eq.${expertId}&order=created_at.desc&limit=50`,
+        {
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+          }
+        }
+      );
+
+      if (!response.ok) {
+        return NextResponse.json({
+          success: false,
+          error: '获取数据失败'
+        }, { status: 500 });
+      }
+
+      const data = await response.json();
 
       return NextResponse.json({
         success: true,
-        data: expertFeedback
+        data
       });
     }
 
     if (type === 'problems') {
       // 返回问题分析（用户反馈不准确的问题）
-      const problemFeedback = Array.from(feedbackStore.values())
-        .filter(f => f.rating === 'inaccurate' || f.rating === 'not_helpful')
-        .sort((a, b) => new Date(b.timestamp!).getTime() - new Date(a.timestamp!).getTime())
-        .slice(0, 20);
+      const response = await fetch(
+        `${SUPABASE_URL}/rest/v1/expert_feedback?rating=eq.negative&order=created_at.desc&limit=20`,
+        {
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+          }
+        }
+      );
+
+      if (!response.ok) {
+        return NextResponse.json({
+          success: false,
+          error: '获取数据失败'
+        }, { status: 500 });
+      }
+
+      const data = await response.json();
+      const commonIssues = analyzeCommonIssues(data);
 
       return NextResponse.json({
         success: true,
         data: {
-          problems: problemFeedback,
-          commonIssues: analyzeCommonIssues(problemFeedback)
+          problems: data,
+          commonIssues
         }
       });
     }
 
+    const stats = await getFeedbackStats();
     return NextResponse.json({
       success: true,
-      data: feedbackStats
+      data: stats
     });
 
   } catch (error: any) {
@@ -155,79 +256,8 @@ export async function GET(request: Request) {
   }
 }
 
-// 更新统计
-function updateStats(feedback: Feedback) {
-  feedbackStats.totalFeedback++;
-
-  // 按评分类型统计
-  switch (feedback.rating) {
-    case 'helpful':
-      feedbackStats.helpful++;
-      break;
-    case 'not_helpful':
-      feedbackStats.notHelpful++;
-      break;
-    case 'accurate':
-      feedbackStats.accurate++;
-      break;
-    case 'inaccurate':
-      feedbackStats.inaccurate++;
-      break;
-  }
-
-  // 按专家统计
-  if (!feedbackStats.byExpert[feedback.expertId]) {
-    feedbackStats.byExpert[feedback.expertId] = {
-      helpful: 0,
-      notHelpful: 0,
-      accurate: 0,
-      inaccurate: 0
-    };
-  }
-  if (feedback.rating === 'helpful') feedbackStats.byExpert[feedback.expertId].helpful++;
-  if (feedback.rating === 'not_helpful') feedbackStats.byExpert[feedback.expertId].notHelpful++;
-  if (feedback.rating === 'accurate') feedbackStats.byExpert[feedback.expertId].accurate++;
-  if (feedback.rating === 'inaccurate') feedbackStats.byExpert[feedback.expertId].inaccurate++;
-
-  // 按股票统计
-  if (feedback.stockCode) {
-    if (!feedbackStats.byStock[feedback.stockCode]) {
-      feedbackStats.byStock[feedback.stockCode] = { helpful: 0, notHelpful: 0 };
-    }
-    if (feedback.rating === 'helpful' || feedback.rating === 'accurate') {
-      feedbackStats.byStock[feedback.stockCode].helpful++;
-    }
-    if (feedback.rating === 'not_helpful' || feedback.rating === 'inaccurate') {
-      feedbackStats.byStock[feedback.stockCode].notHelpful++;
-    }
-  }
-
-  // 更新趋势
-  const today = new Date().toISOString().split('T')[0];
-  const trendIndex = feedbackStats.recentTrends.findIndex(t => t.date === today);
-  
-  if (trendIndex >= 0) {
-    if (feedback.rating === 'helpful' || feedback.rating === 'accurate') {
-      feedbackStats.recentTrends[trendIndex].helpful++;
-    }
-    if (feedback.rating === 'not_helpful' || feedback.rating === 'inaccurate') {
-      feedbackStats.recentTrends[trendIndex].notHelpful++;
-    }
-  } else {
-    feedbackStats.recentTrends.push({
-      date: today,
-      helpful: feedback.rating === 'helpful' || feedback.rating === 'accurate' ? 1 : 0,
-      notHelpful: feedback.rating === 'not_helpful' || feedback.rating === 'inaccurate' ? 1 : 0
-    });
-    // 只保留最近30天
-    if (feedbackStats.recentTrends.length > 30) {
-      feedbackStats.recentTrends.shift();
-    }
-  }
-}
-
 // 分析常见问题
-function analyzeCommonIssues(problems: Feedback[]) {
+function analyzeCommonIssues(problems: any[]) {
   const issues = {
     wrongStockName: [] as string[],
     wrongPrice: [] as string[],
@@ -237,22 +267,22 @@ function analyzeCommonIssues(problems: Feedback[]) {
   };
 
   for (const problem of problems) {
-    if (problem.comment) {
-      const comment = problem.comment.toLowerCase();
+    if (problem.feedback) {
+      const comment = problem.feedback.toLowerCase();
       if (comment.includes('名字') || comment.includes('名称')) {
-        issues.wrongStockName.push(problem.stockCode || '未知');
+        issues.wrongStockName.push(problem.stock_code || '未知');
       }
       if (comment.includes('价格') || comment.includes('股价')) {
-        issues.wrongPrice.push(problem.stockCode || '未知');
+        issues.wrongPrice.push(problem.stock_code || '未知');
       }
       if (comment.includes('市值')) {
-        issues.wrongMarketCap.push(problem.stockCode || '未知');
+        issues.wrongMarketCap.push(problem.stock_code || '未知');
       }
       if (comment.includes('港股通') || comment.includes('入通')) {
-        issues.wrongConnectStatus.push(problem.stockCode || '未知');
+        issues.wrongConnectStatus.push(problem.stock_code || '未知');
       }
       if (comment.includes('编造') || comment.includes('胡编') || comment.includes('幻觉')) {
-        issues.hallucination.push(problem.stockCode || '未知');
+        issues.hallucination.push(problem.stock_code || '未知');
       }
     }
   }
