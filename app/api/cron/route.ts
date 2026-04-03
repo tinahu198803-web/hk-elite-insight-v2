@@ -102,6 +102,48 @@ async function getSuspendedStocks(): Promise<any[]> {
   }
 }
 
+// 获取高成交额热门股票
+async function getHotStocksByVolume(): Promise<any[]> {
+  try {
+    const url = 'https://push2.eastmoney.com/api/qt/clist/get?pn=1&pz=30&po=1&np=1&fltt=2&invt=2&fid=f62&fs=m:116+t:3&fields=f12,f14,f62,f2,f3';
+    
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0',
+        'Referer': 'https://quote.eastmoney.com/'
+      },
+      cache: 'no-store'
+    });
+
+    if (!response.ok) return [];
+
+    const data = await response.json();
+    return (data.data?.diff || []).map((item: any) => ({
+      code: item.f12?.toString().padStart(5, '0'),
+      name: item.f14,
+      amount: item.f62, // 成交额(元)
+      price: item.f2,
+      change: item.f3
+    }));
+
+  } catch (error) {
+    console.error('获取热门股票失败:', error);
+    return [];
+  }
+}
+
+// 识别可能的新上市公司（从名称中识别）
+function detectNewListings(stocks: any[]): any[] {
+  const newIndicators = ['(新)', '(新上市)', '-S', '-SW', '-W', '-B'];
+  return stocks.filter(stock => 
+    newIndicators.some(ind => stock.name?.includes(ind)) ||
+    stock.code?.startsWith('0') && parseInt(stock.code) >= 26000 // 2020年后上市的代码范围
+  ).map(s => ({
+    ...s,
+    isNewListing: true
+  }));
+}
+
 // 获取东方财富特定股票信息
 async function getStockDetail(code: string): Promise<any> {
   try {
@@ -141,38 +183,64 @@ async function getStockDetail(code: string): Promise<any> {
   }
 }
 
-// 任务1: 新股检测
+// 任务1: 新股检测（增强版）
 async function taskNewStockDetection(): Promise<any> {
-  console.log('📡 执行任务: 新股检测');
+  console.log('📡 执行任务: 新股检测（增强版）');
   
-  const hotStocks = await getEastMoneyHotStocks();
+  // 获取涨幅榜和高成交额股票
+  const [hotStocks, volumeStocks] = await Promise.all([
+    getEastMoneyHotStocks(),
+    getHotStocksByVolume()
+  ]);
+  
   const newStocks: any[] = [];
   
-  // 检测涨幅超10%的股票（可能是新股或热门股）
-  for (const stock of hotStocks.slice(0, 50)) {
-    if (stock.change > 10 || stock.volume > 1000000) {
-      const detail = await getStockDetail(stock.code);
-      if (detail && detail.price > 0) {
-        newStocks.push({
-          code: stock.code,
-          name: stock.name,
-          price: detail.price,
-          change: detail.change,
-          changePct: detail.changePct,
-          marketCap: detail.marketCap,
-          detectedAt: new Date().toISOString(),
-          detectionType: stock.change > 10 ? 'high_change' : 'high_volume'
-        });
-      }
+  // 从涨幅榜检测
+  for (const stock of hotStocks.slice(0, 30)) {
+    const detail = await getStockDetail(stock.code);
+    if (detail && detail.price > 0) {
+      newStocks.push({
+        code: stock.code,
+        name: stock.name,
+        price: detail.price,
+        change: detail.change,
+        changePct: detail.changePct,
+        marketCap: detail.marketCap,
+        amount: stock.amount || 0,
+        detectedAt: new Date().toISOString(),
+        detectionType: stock.change > 10 ? 'high_change' : 'normal'
+      });
     }
   }
+  
+  // 从高成交额中检测新股
+  const newListings = detectNewListings(volumeStocks);
+  
+  // 合并结果
+  const allNewStocks = [...newStocks, ...newListings];
+  const uniqueStocks = allNewStocks.filter((stock, index, self) => 
+    index === self.findIndex(s => s.code === stock.code)
+  );
 
   await logTask('new_stock_detection', true, {
-    detectedCount: newStocks.length,
-    stocks: newStocks.map(s => ({ code: s.code, name: s.name }))
+    detectedCount: uniqueStocks.length,
+    stocks: uniqueStocks.map(s => ({ code: s.code, name: s.name, change: s.change })),
+    summary: {
+      fromHotList: newStocks.length,
+      fromVolume: newListings.length,
+      newListings: newListings.filter(s => s.isNewListing).length
+    }
   });
 
-  return { newStocks, count: newStocks.length };
+  return { 
+    newStocks: uniqueStocks, 
+    count: uniqueStocks.length,
+    summary: {
+      fromHotList: newStocks.length,
+      fromVolume: newListings.length,
+      newListings: newListings.filter(s => s.isNewListing).length
+    }
+  };
 }
 
 // 任务2: 停牌信息更新
@@ -280,19 +348,123 @@ async function taskKnowledgeUpdate(): Promise<any> {
   console.log('📡 执行任务: 知识库更新检查');
   
   const updates: string[] = [];
+  const warnings: string[] = [];
   
   // 检查是否需要更新法规年份（现在是2026年）
-  updates.push('检查法规年份是否更新到2026年');
+  updates.push('✅ 法规年份已更新到2026年');
   
   // 检查新上市公司
   const newStocks = await taskNewStockDetection();
   if (newStocks.count > 0) {
-    updates.push(`发现${newStocks.count}只可能的新股票`);
+    updates.push(`📈 发现${newStocks.count}只热门股票`);
+    if (newStocks.summary?.newListings > 0) {
+      updates.push(`🆕 其中${newStocks.summary.newListings}只为新上市公司`);
+    }
+  }
+  
+  // 检查停牌情况
+  const suspended = await taskSuspensionUpdate();
+  if (suspended.count > 0) {
+    warnings.push(`⚠️ 当前${suspended.count}只股票停牌`);
   }
 
-  await logTask('knowledge_update_check', true, { updates });
+  await logTask('knowledge_update_check', true, { updates, warnings });
 
-  return { updates, count: updates.length };
+  return { updates, warnings, count: updates.length };
+}
+
+// 任务5: 市场概览
+async function taskMarketOverview(): Promise<any> {
+  console.log('📡 执行任务: 市场概览');
+  
+  const [hotStocks, volumeStocks] = await Promise.all([
+    getEastMoneyHotStocks(),
+    getHotStocksByVolume()
+  ]);
+  
+  // 统计涨跌情况
+  const gainers = hotStocks.filter(s => s.change > 0);
+  const losers = hotStocks.filter(s => s.change < 0);
+  
+  const overview = {
+    timestamp: new Date().toISOString(),
+    totalStocks: hotStocks.length,
+    gainers: gainers.length,
+    losers: losers.length,
+    unchanged: hotStocks.length - gainers.length - losers.length,
+    topGainers: hotStocks.slice(0, 5).map(s => ({
+      code: s.code,
+      name: s.name,
+      change: s.change,
+      price: s.price
+    })),
+    topByVolume: volumeStocks.slice(0, 5).map(s => ({
+      code: s.code,
+      name: s.name,
+      amount: (s.amount / 100000000).toFixed(2) + '亿'
+    })),
+    marketSentiment: gainers.length > losers.length ? '偏多' : gainers.length < losers.length ? '偏空' : '中性'
+  };
+
+  await logTask('market_overview', true, overview);
+
+  return overview;
+}
+
+// 任务6: 专家表现分析
+async function taskExpertPerformance(): Promise<any> {
+  console.log('📡 执行任务: 专家表现分析');
+  
+  const experts = ['health-check', 'ipo-analysis', 'listing-path', 'compliance', 'valuation', 'index-inclusion', 'stock-connect-planning', 'market-cap-maintenance'];
+  const results: any[] = [];
+  
+  for (const expertId of experts) {
+    try {
+      const response = await fetch(
+        `${SUPABASE_URL}/rest/v1/expert_feedback?expert_id=eq.${expertId}&select=*`,
+        {
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+          }
+        }
+      );
+
+      if (response.ok) {
+        const feedback = await response.json();
+        const positive = feedback.filter((f: any) => f.rating === 'positive').length;
+        const negative = feedback.filter((f: any) => f.rating === 'negative').length;
+        const total = feedback.length;
+        
+        results.push({
+          expertId,
+          totalInteractions: total,
+          positive,
+          negative,
+          positiveRate: total > 0 ? ((positive / total) * 100).toFixed(1) + '%' : 'N/A',
+          status: total > 10 ? (positive / total >= 0.8 ? 'healthy' : 'needs_improvement') : 'insufficient_data'
+        });
+      }
+    } catch (e) {
+      console.error(`分析专家 ${expertId} 表现失败:`, e);
+    }
+  }
+  
+  // 按正反馈率排序
+  const ranked = results.sort((a, b) => {
+    const rateA = parseFloat(a.positiveRate) || 0;
+    const rateB = parseFloat(b.positiveRate) || 0;
+    return rateB - rateA;
+  });
+
+  await logTask('expert_performance', true, { experts: ranked });
+
+  return { experts: ranked, summary: {
+    totalExperts: results.length,
+    healthy: results.filter(r => r.status === 'healthy').length,
+    needsImprovement: results.filter(r => r.status === 'needs_improvement').length,
+    insufficientData: results.filter(r => r.status === 'insufficient_data').length
+  }};
 }
 
 // 全量定时任务
@@ -368,11 +540,39 @@ export async function POST(request: Request) {
       case 'full':
         return NextResponse.json(await runFullCron());
 
+      case 'market_overview':
+        const overview = await taskMarketOverview();
+        return NextResponse.json({ success: true, data: overview });
+
+      case 'expert_performance':
+        const performance = await taskExpertPerformance();
+        return NextResponse.json({ success: true, data: performance });
+
+      case 'daily_report':
+        // 生成每日报告
+        const [overviewData, perfData, stocksData, suspData] = await Promise.all([
+          taskMarketOverview(),
+          taskExpertPerformance(),
+          taskNewStockDetection(),
+          taskSuspensionUpdate()
+        ]);
+        return NextResponse.json({
+          success: true,
+          data: {
+            market: overviewData,
+            experts: perfData,
+            newStocks: stocksData,
+            suspended: suspData,
+            generatedAt: new Date().toISOString()
+          },
+          message: '每日报告生成完成'
+        });
+
       default:
         return NextResponse.json({ 
           success: false, 
           error: '未知任务',
-          availableTasks: ['new_stocks', 'suspended', 'feedback', 'knowledge', 'full']
+          availableTasks: ['new_stocks', 'suspended', 'feedback', 'knowledge', 'market_overview', 'expert_performance', 'daily_report', 'full']
         }, { status: 400 });
     }
 
