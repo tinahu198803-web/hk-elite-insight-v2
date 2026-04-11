@@ -150,35 +150,67 @@ export async function GET(request: Request) {
     if (stocks.length === 0 || force) {
       console.log('使用备用数据...');
       
-      // 备用数据：已知的主要港股通股票
+      // 备用数据：已知的主要港股通股票（2026年4月更新）
       const backupStocks = [
-        { code: '02659', name: '宝济药业-B', date: '2025-03-09', type: '小型股' },
-        { code: '02575', name: '轩竹生物', date: '2025-03-09', type: '小型股' },
-        { code: '02655', name: '果下科技', date: '2025-03', type: '小型股' },
-        { code: '00700', name: '腾讯控股', date: null, type: '大型股' },
-        { code: '09988', name: '阿里巴巴-SW', date: '2019-11', type: '大型股' },
-        { code: '03690', name: '美团-W', date: '2018-09', type: '大型股' },
-        { code: '01810', name: '小米集团-W', date: '2019-09', type: '大型股' },
-        { code: '09618', name: '京东集团-SW', date: '2020-06', type: '大型股' },
-        { code: '09909', name: '网易-S', date: '2020-06', type: '大型股' },
-        { code: '09961', name: '百度集团-SW', date: '2021-03', type: '大型股' },
-        { code: '02318', name: '中国平安', date: null, type: '大型股' },
-        { code: '00941', name: '中国移动', date: null, type: '大型股' },
-        { code: '00939', name: '建设银行', date: null, type: '大型股' },
-        { code: '02628', name: '中国人寿', date: null, type: '大型股' },
-        { code: '09688', name: '友邦保险', date: null, type: '大型股' },
-        { code: '03968', name: '招商银行', date: null, type: '中型股' },
-        { code: '06030', name: '中信证券', date: null, type: '中型股' },
-        { code: '02382', name: '舜宇光学', date: '2018-09', type: '中型股' },
-        { code: '06690', name: '海尔智家', date: '2018-12', type: '中型股' },
-        { code: '06808', name: '京东健康', date: '2020-12', type: '中型股' },
-        { code: '02899', name: '紫金矿业', date: '2020-12', type: '中型股' },
-        { code: '00291', name: '华润啤酒', date: null, type: '中型股' },
-        { code: '03888', name: '海底捞', date: '2018-09', type: '中型股' },
-        { code: '01877', name: '百济神州', date: '2018-03', type: '中型股' },
-        { code: '02269', name: '药明生物', date: '2017-06', type: '中型股' },
-        { code: '09888', name: '小鹏汽车-W', date: '2021-07', type: '中型股' },
-        { code: '09881', name: '理想汽车-W', date: '2024-03', type: '中型股' },
+        // 2026年新入通股票
+        { code: '02629', name: 'MIRXES-B', date: '2026-03-09', type: '小型股', industry: '生物医药' },
+        { code: '02671', name: '泰德医药', date: '2026-03-09', type: '小型股', industry: '生物医药' },
+        // 2025年新入通股票
+        { code: '02659', name: '宝济药业-B', date: '2025-03-09', type: '小型股', industry: '生物医药' },
+        { code: '02575', name: '轩竹生物', date: '2025-03-09', type: '小型股', industry: '生物医药' },
+        { code: '02655', name: '果下科技', date: '2025-03-09', type: '小型股', industry: '新能源' },
+        { code: '02665', name: '华航证券', date: '2025-03-09', type: '小型股', industry: '金融' },
+        // 2024年新入通股票
+        { code: '02569', name: '理想汽车', date: '2024-03-04', type: '中型股', industry: '新能源汽车' },
+        { code: '09868', name: '小鹏汽车', date: '2024-03-04', type: '中型股', industry: '新能源汽车' },
+        { code: '09980', name: '零跑汽车', date: '2024-09-09', type: '小型股', industry: '新能源汽车' },
+        { code: '09660', name: '蔚来-SW', date: '2024-05-10', type: '中型股', industry: '新能源汽车' },
+        { code: '02557', name: '赛目科技', date: '2024-06-14', type: '小型股', industry: '科技' },
+        { code: '02589', name: '出门问问', date: '2024-06-14', type: '小型股', industry: 'AI' },
+        // 大型股
+        { code: '00700', name: '腾讯控股', date: null, type: '大型股', industry: '互联网' },
+        { code: '09988', name: '阿里巴巴-SW', date: '2019-11-26', type: '大型股', industry: '互联网' },
+        { code: '03690', name: '美团-W', date: '2018-09-10', type: '大型股', industry: '互联网' },
+        { code: '01810', name: '小米集团-W', date: '2019-09-09', type: '大型股', industry: '科技' },
+        { code: '09618', name: '京东集团-SW', date: '2020-06-11', type: '大型股', industry: '互联网' },
+        { code: '09909', name: '网易-S', date: '2020-06-11', type: '大型股', industry: '互联网' },
+        { code: '09961', name: '百度集团-SW', date: '2021-03-15', type: '大型股', industry: '互联网' },
+        { code: '02318', name: '中国平安', date: null, type: '大型股', industry: '保险' },
+        { code: '00941', name: '中国移动', date: null, type: '大型股', industry: '电信' },
+        { code: '00939', name: '建设银行', date: null, type: '大型股', industry: '银行' },
+        { code: '02628', name: '中国人寿', date: null, type: '大型股', industry: '保险' },
+        { code: '09688', name: '友邦保险', date: null, type: '大型股', industry: '保险' },
+        { code: '00981', name: '中芯国际', date: '2004-03-17', type: '大型股', industry: '半导体' },
+        { code: '09876', name: '珍酒李渡', date: '2023-04-27', type: '中型股', industry: '白酒' },
+        { code: '09633', name: '农夫山泉', date: '2020-09-07', type: '大型股', industry: '饮料' },
+        // 中型股
+        { code: '03968', name: '招商银行', date: null, type: '中型股', industry: '银行' },
+        { code: '06030', name: '中信证券', date: null, type: '中型股', industry: '金融' },
+        { code: '02382', name: '舜宇光学', date: '2018-09-10', type: '中型股', industry: '电子' },
+        { code: '06690', name: '海尔智家', date: '2018-12-10', type: '中型股', industry: '家电' },
+        { code: '06808', name: '京东健康', date: '2020-12-08', type: '中型股', industry: '医疗' },
+        { code: '02899', name: '紫金矿业', date: '2020-12-07', type: '中型股', industry: '矿业' },
+        { code: '00291', name: '华润啤酒', date: null, type: '中型股', industry: '消费' },
+        { code: '03888', name: '海底捞', date: '2018-09-10', type: '中型股', industry: '餐饮' },
+        { code: '06160', name: '百济神州', date: '2018-03-12', type: '中型股', industry: '生物医药' },
+        { code: '02269', name: '药明生物', date: '2017-06-22', type: '中型股', industry: '生物医药' },
+        { code: '02359', name: '药明康德', date: '2018-12-13', type: '中型股', industry: '生物医药' },
+        { code: '03759', name: '康龙化成', date: '2019-11-28', type: '中型股', industry: '生物医药' },
+        { code: '06606', name: '满帮集团', date: '2023-06-05', type: '中型股', industry: '物流' },
+        { code: '06886', name: '华泰证券', date: '2015-06-01', type: '中型股', industry: '金融' },
+        { code: '03908', name: '中金公司', date: '2015-11-09', type: '中型股', industry: '金融' },
+        { code: '02492', name: '哔哩哔哩-W', date: '2021-03-18', type: '中型股', industry: '互联网' },
+        { code: '06655', name: '微博-SW', date: '2022-11-14', type: '中型股', industry: '互联网' },
+        // 小型股
+        { code: '02628', name: '中国人寿', date: null, type: '小型股', industry: '保险' },
+        { code: '03328', name: '交通银行', date: null, type: '小型股', industry: '银行' },
+        { code: '06618', name: '众安在线', date: '2017-09-28', type: '小型股', industry: '保险' },
+        { code: '06603', name: '香港交易所', date: null, type: '小型股', industry: '金融' },
+        { code: '06098', name: '碧桂园服务', date: '2018-06-19', type: '小型股', industry: '物业' },
+        { code: '06198', name: '顺丰同城', date: '2023-12-06', type: '小型股', industry: '物流' },
+        { code: '06718', name: '中国中免', date: '2024-03-04', type: '小型股', industry: '零售' },
+        { code: '09955', name: '东方甄选', date: '2023-06-06', type: '小型股', industry: '零售' },
+        { code: '09939', name: '坚朗五金', date: '2024-06-06', type: '小型股', industry: '建材' },
       ];
 
       // 更新备用数据到Supabase
@@ -188,9 +220,11 @@ export async function GET(request: Request) {
           const record = {
             stock_code: stock.code,
             stock_name: stock.name,
-            industry: stock.name.includes('药') || stock.name.includes('生物') ? '生物医药' : 
-                     stock.name.includes('银行') || stock.name.includes('保险') ? '金融' :
-                     stock.name.includes('汽车') ? '新能源汽车' : '综合',
+            industry: stock.industry || (
+              stock.name.includes('药') || stock.name.includes('生物') ? '生物医药' : 
+              stock.name.includes('银行') || stock.name.includes('保险') || stock.name.includes('证券') ? '金融' :
+              stock.name.includes('汽车') ? '新能源汽车' : '综合'
+            ),
             connect_type: '南向',
             hsci_type: stock.type,
             inclusion_date: stock.date,
