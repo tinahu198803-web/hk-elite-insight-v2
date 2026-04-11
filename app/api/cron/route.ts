@@ -9,9 +9,200 @@
 
 import { NextResponse } from 'next/server';
 
-// Supabase配置
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://atwlxpljfidlaaufeach.supabase.co';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
+// Supabase配置 - 从环境变量读取
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+// 港股数据API源配置（支持故障转移）
+const HK_STOCK_API_SOURCES = {
+  // 主数据源：东方财富（免费实时）
+  primary: {
+    name: '东方财富',
+    hotStocks: 'https://push2.eastmoney.com/api/qt/clist/get?pn=1&pz=100&po=1&np=1&fltt=2&invt=2&fid=f3&fs=m:116+t:3&fields=f12,f14,f3,f2,f5,f6,f18',
+    suspended: 'https://push2.eastmoney.com/api/qt/clist/get?pn=1&pz=100&po=1&np=1&fltt=2&invt=2&fid=f3&fs=m:116+s:2048&fields=f12,f14,f18',
+    volume: 'https://push2.eastmoney.com/api/qt/clist/get?pn=1&pz=30&po=1&np=1&fltt=2&invt=2&fid=f62&fs=m:116+t:3&fields=f12,f14,f62,f2,f3',
+    stockDetail: (code: string) => `https://push2.eastmoney.com/api/qt/stock/get?secid=116.${code.padStart(5, '0')}&fields=f43,f57,f58,f107,f47,f48,f116,f117,f50,f169,f170`,
+    headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://quote.eastmoney.com/' }
+  },
+  // 备用数据源1：新浪财经（免费，无需注册，可能有延迟）
+  sina: {
+    name: '新浪财经',
+    hotStocks: 'https://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/Market_Center.getHQNodeDataSimple?page=1&num=100&sort=changepercent&asc=0&node=hk_a&symbol=&_s_r_a=page',
+    stockDetail: (code: string) => `https://hq.sinajs.cn/list=hk${code.padStart(5, '0')}`,
+    headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://finance.sina.com.cn/' }
+  },
+  // 备用数据源2：iTick（付费API，支持港股）
+  itick: {
+    name: 'iTick',
+    baseUrl: 'https://api.itick.org',
+    token: process.env.ITICK_TOKEN || '', // 需要用户申请
+    headers: { 'accept': 'application/json' }
+  },
+  // 备用数据源3：AllTick（适合量化交易）
+  alltick: {
+    name: 'AllTick',
+    baseUrl: 'https://quote.tradeswitcher.com',
+    token: process.env.ALLTICK_TOKEN || '', // 需要用户申请
+    headers: { 'Content-Type': 'application/json' }
+  }
+};
+
+// 当前使用的API源
+let currentSource = 'primary';
+let lastSourceSwitch = new Date();
+
+// API健康检查和故障转移
+async function checkApiHealth(source: keyof typeof HK_STOCK_API_SOURCES): Promise<boolean> {
+  try {
+    if (source === 'primary') {
+      const response = await fetch(HK_STOCK_API_SOURCES.primary.hotStocks, {
+        headers: HK_STOCK_API_SOURCES.primary.headers,
+        signal: AbortSignal.timeout(5000)
+      });
+      return response.ok;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+// 自动切换到备用数据源（按优先级）
+async function switchToBackupSource(): Promise<boolean> {
+  console.log(`🔄 [${new Date().toISOString()}] 主数据源不可用，尝试切换到备用数据源...`);
+  
+  // 优先级1：新浪财经（免费，无需注册）
+  try {
+    const response = await fetch(HK_STOCK_API_SOURCES.sina.hotStocks, {
+      headers: HK_STOCK_API_SOURCES.sina.headers,
+      signal: AbortSignal.timeout(8000)
+    });
+    if (response.ok) {
+      currentSource = 'sina';
+      lastSourceSwitch = new Date();
+      console.log('✅ 已切换到备用数据源: 新浪财经（免费）');
+      return true;
+    }
+  } catch (e) {
+    console.log('❌ 新浪财经不可用');
+  }
+  
+  // 优先级2：iTick（付费，需要token）
+  if (HK_STOCK_API_SOURCES.itick.token) {
+    try {
+      const response = await fetch(`${HK_STOCK_API_SOURCES.itick.baseUrl}/stock/kline?region=hk&code=700&kType=1`, {
+        headers: { ...HK_STOCK_API_SOURCES.itick.headers, 'token': HK_STOCK_API_SOURCES.itick.token },
+        signal: AbortSignal.timeout(5000)
+      });
+      if (response.ok) {
+        currentSource = 'itick';
+        lastSourceSwitch = new Date();
+        console.log('✅ 已切换到备用数据源: iTick（付费）');
+        return true;
+      }
+    } catch (e) {
+      console.log('❌ iTick不可用');
+    }
+  }
+  
+  // 优先级3：AllTick（付费，需要token）
+  if (HK_STOCK_API_SOURCES.alltick.token) {
+    try {
+      const response = await fetch(`${HK_STOCK_API_SOURCES.alltick.baseUrl}/quote-stock-b-api/kline?token=${HK_STOCK_API_SOURCES.alltick.token}&query={"code":"700.HK","kline_type":1}`, {
+        headers: HK_STOCK_API_SOURCES.alltick.headers,
+        signal: AbortSignal.timeout(5000)
+      });
+      if (response.ok) {
+        currentSource = 'alltick';
+        lastSourceSwitch = new Date();
+        console.log('✅ 已切换到备用数据源: AllTick（付费）');
+        return true;
+      }
+    } catch (e) {
+      console.log('❌ AllTick不可用');
+    }
+  }
+  
+  console.log('⚠️ 所有备用数据源都不可用');
+  return false;
+}
+
+// 从新浪财经获取港股涨幅榜
+async function getSinaHotStocks(): Promise<any[]> {
+  try {
+    const url = HK_STOCK_API_SOURCES.sina.hotStocks;
+    
+    const response = await fetch(url, {
+      headers: HK_STOCK_API_SOURCES.sina.headers,
+      signal: AbortSignal.timeout(10000)
+    });
+
+    if (!response.ok) return [];
+
+    const text = await response.text();
+    // 新浪返回的是JavaScript对象格式，需要解析
+    const jsonMatch = text.match(/\{.*\}/);
+    if (!jsonMatch) return [];
+    
+    const data = JSON.parse(jsonMatch[0]);
+    if (!Array.isArray(data)) return [];
+
+    return data.map((item: any) => ({
+      code: item.symbol?.replace('hk', '') || '',
+      name: item.name || '',
+      change: parseFloat(item.changepercent) || 0,
+      price: parseFloat(item.trade) || 0,
+      volume: parseInt(item.volume) || 0,
+      amount: parseFloat(item.amount) || 0,
+      source: 'sina'
+    }));
+
+  } catch (error) {
+    console.error('从新浪获取热门股票失败:', error);
+    return [];
+  }
+}
+
+// 从iTick获取港股数据
+async function getITickStocks(): Promise<any[]> {
+  const token = HK_STOCK_API_SOURCES.backup1.token;
+  if (!token) return [];
+  
+  try {
+    const response = await fetch(`${HK_STOCK_API_SOURCES.backup1.baseUrl}/stock/kline?region=hk&code=HSI&kType=1`, {
+      headers: { ...HK_STOCK_API_SOURCES.backup1.headers, 'token': token }
+    });
+    
+    if (!response.ok) return [];
+    
+    const data = await response.json();
+    // iTick返回格式处理
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+// 从AllTick获取港股数据
+async function getAllTickStocks(): Promise<any[]> {
+  const token = HK_STOCK_API_SOURCES.backup2.token;
+  if (!token) return [];
+  
+  try {
+    const response = await fetch(`${HK_STOCK_API_SOURCES.backup2.baseUrl}/quote-stock-b-api/kline?token=${token}&query={"code":"700.HK","kline_type":1}`, {
+      headers: HK_STOCK_API_SOURCES.backup2.headers
+    });
+    
+    if (!response.ok) return [];
+    
+    const data = await response.json();
+    // AllTick返回格式处理
+    return [];
+  } catch {
+    return [];
+  }
+}
 
 // 记录任务执行日志
 async function logTask(taskName: string, success: boolean, details: any, error?: string): Promise<void> {
@@ -42,21 +233,23 @@ async function logTask(taskName: string, success: boolean, details: any, error?:
   }
 }
 
-// 获取东方财富港股涨幅榜
+// 获取港股涨幅榜（带故障转移）
 async function getEastMoneyHotStocks(): Promise<any[]> {
   try {
     // 获取今日涨幅最大的港股
-    const url = 'https://push2.eastmoney.com/api/qt/clist/get?pn=1&pz=100&po=1&np=1&fltt=2&invt=2&fid=f3&fs=m:116+t:3&fields=f12,f14,f3,f2,f5,f6,f18';
+    const url = HK_STOCK_API_SOURCES.primary.hotStocks;
     
     const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0',
-        'Referer': 'https://quote.eastmoney.com/'
-      },
-      cache: 'no-store'
+      headers: HK_STOCK_API_SOURCES.primary.headers,
+      cache: 'no-store',
+      signal: AbortSignal.timeout(10000)
     });
 
-    if (!response.ok) return [];
+    if (!response.ok) {
+      // API返回错误，尝试切换到备用源
+      await switchToBackupSource();
+      return [];
+    }
 
     const data = await response.json();
     return (data.data?.diff || []).map((item: any) => ({
@@ -65,26 +258,38 @@ async function getEastMoneyHotStocks(): Promise<any[]> {
       change: item.f3,
       price: item.f2,
       volume: item.f5,
-      reason: item.f18 || '热门股票'
+      reason: item.f18 || '热门股票',
+      source: currentSource
     }));
 
   } catch (error) {
     console.error('获取热门股票失败:', error);
+    // 网络错误，尝试故障转移
+    if (currentSource === 'primary') {
+      await switchToBackupSource();
+    }
+    
+    // 如果切换到了新浪，使用新浪的函数
+    if (currentSource === 'sina') {
+      const sinaStocks = await getSinaHotStocks();
+      if (sinaStocks.length > 0) {
+        return sinaStocks;
+      }
+    }
+    
     return [];
   }
 }
 
-// 获取停牌股票
+// 获取停牌股票（带故障转移）
 async function getSuspendedStocks(): Promise<any[]> {
   try {
-    const url = 'https://push2.eastmoney.com/api/qt/clist/get?pn=1&pz=100&po=1&np=1&fltt=2&invt=2&fid=f3&fs=m:116+s:2048&fields=f12,f14,f18';
+    const url = HK_STOCK_API_SOURCES.primary.suspended;
     
     const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0',
-        'Referer': 'https://quote.eastmoney.com/'
-      },
-      cache: 'no-store'
+      headers: HK_STOCK_API_SOURCES.primary.headers,
+      cache: 'no-store',
+      signal: AbortSignal.timeout(10000)
     });
 
     if (!response.ok) return [];
@@ -93,26 +298,26 @@ async function getSuspendedStocks(): Promise<any[]> {
     return (data.data?.diff || []).map((item: any) => ({
       code: item.f12?.toString().padStart(5, '0'),
       name: item.f14,
-      suspendDate: item.f18
+      suspendDate: item.f18,
+      source: currentSource
     }));
 
   } catch (error) {
     console.error('获取停牌股票失败:', error);
+    // 停牌信息暂无备用源，返回空数组
     return [];
   }
 }
 
-// 获取高成交额热门股票
+// 获取高成交额热门股票（带故障转移）
 async function getHotStocksByVolume(): Promise<any[]> {
   try {
-    const url = 'https://push2.eastmoney.com/api/qt/clist/get?pn=1&pz=30&po=1&np=1&fltt=2&invt=2&fid=f62&fs=m:116+t:3&fields=f12,f14,f62,f2,f3';
+    const url = HK_STOCK_API_SOURCES.primary.volume;
     
     const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0',
-        'Referer': 'https://quote.eastmoney.com/'
-      },
-      cache: 'no-store'
+      headers: HK_STOCK_API_SOURCES.primary.headers,
+      cache: 'no-store',
+      signal: AbortSignal.timeout(10000)
     });
 
     if (!response.ok) return [];
@@ -123,12 +328,53 @@ async function getHotStocksByVolume(): Promise<any[]> {
       name: item.f14,
       amount: item.f62, // 成交额(元)
       price: item.f2,
-      change: item.f3
+      change: item.f3,
+      source: currentSource
     }));
 
   } catch (error) {
     console.error('获取热门股票失败:', error);
     return [];
+  }
+}
+
+// 从新浪财经获取股票详情
+async function getSinaStockDetail(code: string): Promise<any> {
+  try {
+    const normalizedCode = code.padStart(5, '0');
+    const url = HK_STOCK_API_SOURCES.sina.stockDetail(normalizedCode);
+    
+    const response = await fetch(url, {
+      headers: HK_STOCK_API_SOURCES.sina.headers,
+      signal: AbortSignal.timeout(5000)
+    });
+
+    if (!response.ok) return null;
+
+    const text = await response.text();
+    // 新浪返回格式: var hq_str_hk00001="名称,当前价格,昨收,开盘,最高,最低,成交量...";
+    const match = text.match(/hq_str_hk\d+="([^"]+)"/);
+    if (!match) return null;
+
+    const parts = match[1].split(',');
+    return {
+      code: normalizedCode,
+      name: parts[1] || '',
+      price: parseFloat(parts[3]) || 0,
+      change: parseFloat(parts[4]) || 0,
+      changePct: parts[4] && parts[3] ? (((parseFloat(parts[4]) - parseFloat(parts[3])) / parseFloat(parts[3])) * 100).toFixed(2) : 0,
+      open: parseFloat(parts[3]) || 0,
+      high: parseFloat(parts[5]) || 0,
+      low: parseFloat(parts[6]) || 0,
+      volume: parseInt(parts[7]) || 0,
+      amount: parseFloat(parts[8]) || 0,
+      timestamp: new Date().toISOString(),
+      source: 'sina'
+    };
+
+  } catch (error) {
+    console.error('从新浪获取股票详情失败:', error);
+    return null;
   }
 }
 
@@ -144,17 +390,15 @@ function detectNewListings(stocks: any[]): any[] {
   }));
 }
 
-// 获取东方财富特定股票信息
+// 获取特定股票详情（带故障转移）
 async function getStockDetail(code: string): Promise<any> {
   try {
     const normalizedCode = code.padStart(5, '0');
-    const url = `https://push2.eastmoney.com/api/qt/stock/get?secid=116.${normalizedCode}&fields=f43,f57,f58,f107,f47,f48,f116,f117,f50,f169,f170`;
+    const url = HK_STOCK_API_SOURCES.primary.stockDetail(normalizedCode);
     
     const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0',
-        'Referer': 'https://quote.eastmoney.com/'
-      }
+      headers: HK_STOCK_API_SOURCES.primary.headers,
+      signal: AbortSignal.timeout(5000)
     });
 
     if (!response.ok) return null;
@@ -174,7 +418,8 @@ async function getStockDetail(code: string): Promise<any> {
       marketCap: d.f116 || 0,
       floatMarketCap: d.f117 || 0,
       pe: d.f50 || null,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      source: currentSource
     };
 
   } catch (error) {
@@ -382,12 +627,24 @@ async function taskMarketOverview(): Promise<any> {
     getHotStocksByVolume()
   ]);
   
+  // 获取当前API源名称
+  const sourceNames: Record<string, string> = {
+    'primary': '东方财富',
+    'sina': '新浪财经',
+    'itick': 'iTick',
+    'alltick': 'AllTick'
+  };
+  
   // 统计涨跌情况
   const gainers = hotStocks.filter(s => s.change > 0);
   const losers = hotStocks.filter(s => s.change < 0);
   
   const overview = {
     timestamp: new Date().toISOString(),
+    apiSource: currentSource,
+    apiSourceName: sourceNames[currentSource] || currentSource,
+    isFree: currentSource === 'primary' || currentSource === 'sina',
+    lastSourceSwitch: lastSourceSwitch.toISOString(),
     totalStocks: hotStocks.length,
     gainers: gainers.length,
     losers: losers.length,

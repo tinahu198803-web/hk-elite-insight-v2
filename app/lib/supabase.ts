@@ -1,9 +1,15 @@
 /**
  * Supabase 客户端兼容层
+ * 
+ * 配置说明：
+ * - SUPABASE_URL: 项目URL，如 https://xxxx.supabase.co
+ * - SUPABASE_ANON_KEY: 匿名密钥（用于客户端）
+ * - SUPABASE_SERVICE_ROLE_KEY: 服务角色密钥（仅用于服务端，具有完全访问权限）
  */
 
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://atwlxpljfidlaaufeach.supabase.co';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 export interface QueryResult {
   data: any;
