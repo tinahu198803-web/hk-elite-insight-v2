@@ -166,12 +166,12 @@ async function getSinaHotStocks(): Promise<any[]> {
 
 // 从iTick获取港股数据
 async function getITickStocks(): Promise<any[]> {
-  const token = HK_STOCK_API_SOURCES.backup1.token;
+  const token = HK_STOCK_API_SOURCES.itick.token;
   if (!token) return [];
   
   try {
-    const response = await fetch(`${HK_STOCK_API_SOURCES.backup1.baseUrl}/stock/kline?region=hk&code=HSI&kType=1`, {
-      headers: { ...HK_STOCK_API_SOURCES.backup1.headers, 'token': token }
+    const response = await fetch(`${HK_STOCK_API_SOURCES.itick.baseUrl}/stock/kline?region=hk&code=HSI&kType=1`, {
+      headers: { ...HK_STOCK_API_SOURCES.itick.headers, 'token': token }
     });
     
     if (!response.ok) return [];
@@ -186,12 +186,12 @@ async function getITickStocks(): Promise<any[]> {
 
 // 从AllTick获取港股数据
 async function getAllTickStocks(): Promise<any[]> {
-  const token = HK_STOCK_API_SOURCES.backup2.token;
+  const token = HK_STOCK_API_SOURCES.alltick.token;
   if (!token) return [];
   
   try {
-    const response = await fetch(`${HK_STOCK_API_SOURCES.backup2.baseUrl}/quote-stock-b-api/kline?token=${token}&query={"code":"700.HK","kline_type":1}`, {
-      headers: HK_STOCK_API_SOURCES.backup2.headers
+    const response = await fetch(`${HK_STOCK_API_SOURCES.alltick.baseUrl}/quote-stock-b-api/kline?token=${token}&query={"code":"700.HK","kline_type":1}`, {
+      headers: HK_STOCK_API_SOURCES.alltick.headers
     });
     
     if (!response.ok) return [];

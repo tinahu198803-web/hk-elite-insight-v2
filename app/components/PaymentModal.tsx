@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Qrcode, CheckCircle, Loader2, AlertCircle } from 'lucide-react';
+import { X, Wallet, CheckCircle, Loader2, AlertCircle } from 'lucide-react';
 import QRCode from 'qrcode.react';
 
 interface PaymentModalProps {
@@ -146,7 +146,7 @@ export default function PaymentModal({
                 onClick={startPayment}
                 className="w-full btn-gradient text-white py-4 rounded-xl font-medium flex items-center justify-center"
               >
-                <Qrcode size={20} className="mr-2" />
+                <Wallet size={20} className="mr-2" />
                 微信支付
               </button>
             </>
