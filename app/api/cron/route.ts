@@ -25,26 +25,19 @@ const HK_STOCK_API_SOURCES = {
     stockDetail: (code: string) => `https://push2.eastmoney.com/api/qt/stock/get?secid=116.${code.padStart(5, '0')}&fields=f43,f57,f58,f107,f47,f48,f116,f117,f50,f169,f170`,
     headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://quote.eastmoney.com/' }
   },
-  // 备用数据源1：新浪财经（免费，无需注册，可能有延迟）
+  // 备用数据源1：腾讯财经（免费，无需注册）
+  tencent: {
+    name: '腾讯财经',
+    hotStocks: 'https://qt.gtimg.cn/q=hshs',
+    stockDetail: (code: string) => `https://qt.gtimg.cn/q=hk${code.padStart(5, '0')}`,
+    headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://gu.qq.com/' }
+  },
+  // 备用数据源2：新浪财经（免费，无需注册，可能有延迟）
   sina: {
     name: '新浪财经',
     hotStocks: 'https://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/Market_Center.getHQNodeDataSimple?page=1&num=100&sort=changepercent&asc=0&node=hk_a&symbol=&_s_r_a=page',
     stockDetail: (code: string) => `https://hq.sinajs.cn/list=hk${code.padStart(5, '0')}`,
     headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://finance.sina.com.cn/' }
-  },
-  // 备用数据源2：iTick（付费API，支持港股）
-  itick: {
-    name: 'iTick',
-    baseUrl: 'https://api.itick.org',
-    token: process.env.ITICK_TOKEN || '', // 需要用户申请
-    headers: { 'accept': 'application/json' }
-  },
-  // 备用数据源3：AllTick（适合量化交易）
-  alltick: {
-    name: 'AllTick',
-    baseUrl: 'https://quote.tradeswitcher.com',
-    token: process.env.ALLTICK_TOKEN || '', // 需要用户申请
-    headers: { 'Content-Type': 'application/json' }
   }
 };
 
@@ -164,40 +157,17 @@ async function getSinaHotStocks(): Promise<any[]> {
   }
 }
 
-// 从iTick获取港股数据
-async function getITickStocks(): Promise<any[]> {
-  const token = HK_STOCK_API_SOURCES.itick.token;
-  if (!token) return [];
-  
+// 从腾讯财经获取港股数据
+async function getTencentStocks(): Promise<any[]> {
   try {
-    const response = await fetch(`${HK_STOCK_API_SOURCES.itick.baseUrl}/stock/kline?region=hk&code=HSI&kType=1`, {
-      headers: { ...HK_STOCK_API_SOURCES.itick.headers, 'token': token }
+    const response = await fetch(HK_STOCK_API_SOURCES.tencent.hotStocks, {
+      headers: HK_STOCK_API_SOURCES.tencent.headers
     });
     
     if (!response.ok) return [];
     
-    const data = await response.json();
-    // iTick返回格式处理
-    return [];
-  } catch {
-    return [];
-  }
-}
-
-// 从AllTick获取港股数据
-async function getAllTickStocks(): Promise<any[]> {
-  const token = HK_STOCK_API_SOURCES.alltick.token;
-  if (!token) return [];
-  
-  try {
-    const response = await fetch(`${HK_STOCK_API_SOURCES.alltick.baseUrl}/quote-stock-b-api/kline?token=${token}&query={"code":"700.HK","kline_type":1}`, {
-      headers: HK_STOCK_API_SOURCES.alltick.headers
-    });
-    
-    if (!response.ok) return [];
-    
-    const data = await response.json();
-    // AllTick返回格式处理
+    const text = await response.text();
+    // 腾讯返回格式处理
     return [];
   } catch {
     return [];
