@@ -52,6 +52,18 @@ async function getFromSupabase(stockCode: string): Promise<StockConnectRecord | 
 
 // 备用本地数据
 const LOCAL_BACKUP: Record<string, StockConnectRecord> = {
+  // 2026年新股
+  '02629': {
+    stock_code: '02629',
+    stock_name: 'MIRXES-B',
+    stock_name_en: 'MIRXES-B',
+    industry: '生物医药',
+    connect_type: '南向',
+    hsci_type: '小型股',
+    inclusion_date: '2026-03-09',
+    status: 'active',
+    notes: '2026年1月15日上市，2026年3月9日正式纳入港股通！'
+  },
   '02659': {
     stock_code: '02659',
     stock_name: '宝济药业-B',
