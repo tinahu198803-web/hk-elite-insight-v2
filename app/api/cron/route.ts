@@ -81,42 +81,6 @@ async function switchToBackupSource(): Promise<boolean> {
     console.log('❌ 新浪财经不可用');
   }
   
-  // 优先级2：iTick（付费，需要token）
-  if (HK_STOCK_API_SOURCES.itick.token) {
-    try {
-      const response = await fetch(`${HK_STOCK_API_SOURCES.itick.baseUrl}/stock/kline?region=hk&code=700&kType=1`, {
-        headers: { ...HK_STOCK_API_SOURCES.itick.headers, 'token': HK_STOCK_API_SOURCES.itick.token },
-        signal: AbortSignal.timeout(5000)
-      });
-      if (response.ok) {
-        currentSource = 'itick';
-        lastSourceSwitch = new Date();
-        console.log('✅ 已切换到备用数据源: iTick（付费）');
-        return true;
-      }
-    } catch (e) {
-      console.log('❌ iTick不可用');
-    }
-  }
-  
-  // 优先级3：AllTick（付费，需要token）
-  if (HK_STOCK_API_SOURCES.alltick.token) {
-    try {
-      const response = await fetch(`${HK_STOCK_API_SOURCES.alltick.baseUrl}/quote-stock-b-api/kline?token=${HK_STOCK_API_SOURCES.alltick.token}&query={"code":"700.HK","kline_type":1}`, {
-        headers: HK_STOCK_API_SOURCES.alltick.headers,
-        signal: AbortSignal.timeout(5000)
-      });
-      if (response.ok) {
-        currentSource = 'alltick';
-        lastSourceSwitch = new Date();
-        console.log('✅ 已切换到备用数据源: AllTick（付费）');
-        return true;
-      }
-    } catch (e) {
-      console.log('❌ AllTick不可用');
-    }
-  }
-  
   console.log('⚠️ 所有备用数据源都不可用');
   return false;
 }
