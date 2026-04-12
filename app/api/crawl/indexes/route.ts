@@ -156,7 +156,6 @@ const HSI_CONSTITUENTS: Record<string, {
   '02492': { stock_code: '02492', stock_name: '哔哩哔哩-W', stock_name_en: 'Bilibili', industry: '互联网', inclusion_date: '2021-03-01' },
   '02569': { stock_code: '02569', stock_name: '理想汽车', stock_name_en: 'Li Auto', industry: '新能源汽车', inclusion_date: '2024-03-01' },
   '02600': { stock_code: '02600', stock_name: '中国铝业', stock_name_en: 'Aluminum Corp', industry: '矿业', inclusion_date: '2001-12-01' },
-  '02628': { stock_code: '02628', stock_name: '中国人寿', stock_name_en: 'China Life', industry: '保险', inclusion_date: '2003-12-01' },
   '02669': { stock_code: '02669', stock_name: '东方证券', stock_name_en: 'Orient Securities', industry: '金融', inclusion_date: '2015-04-01' },
   '02688': { stock_code: '02688', stock_name: '新奥能源', stock_name_en: 'ENN Energy', industry: '能源', inclusion_date: '2002-12-01' },
   '02727': { stock_code: '02727', stock_name: '大唐电力', stock_name_en: 'Datang Power', industry: '电力', inclusion_date: '2011-03-01' },
